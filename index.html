@@ -3,47 +3,69 @@
 <head>
   <meta charset="utf-8">
   <title>스탬프 투어</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#317EFB"/>
-  <script type="module" src="app.js"></script>
   <style>
-    body { font-family: sans-serif; text-align: center; margin:0; padding:20px; }
-    .stampboard { position:relative; width:400px; height:400px; margin:20px auto; border:2px solid #ccc; }
-    .stampboard img { position:absolute; top:0; left:0; width:100%; }
-    button { margin:5px; padding:10px 15px; font-size:15px; border:none; border-radius:8px; cursor:pointer; }
+    :root { color-scheme: light dark; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin:0; padding:20px; text-align:center; }
+    h1 { margin: 8px 0 16px; }
+    .card { max-width: 480px; margin: 12px auto; padding: 16px; border: 1px solid #ddd; border-radius: 12px; }
+    .row { display:flex; gap:8px; justify-content:center; align-items:center; flex-wrap:wrap; }
+    input { padding:10px 12px; font-size:16px; border:1px solid #aaa; border-radius:8px; min-width:220px; }
+    button { padding:10px 14px; font-size:15px; border:none; border-radius:10px; cursor:pointer; }
+    .primary { background:#317EFB; color:#fff; }
+    .ghost { background:transparent; border:1px solid #317EFB; color:#317EFB; }
+    .stampboard { position:relative; width:100%; max-width:420px; aspect-ratio:1/1; margin:12px auto; border:2px solid #ccc; border-radius:12px; overflow:hidden; }
+    .stampboard img { position:absolute; top:0; left:0; width:100%; height:100%; object-fit:cover; }
+    .booth-grid { display:grid; grid-template-columns: repeat(2, minmax(140px, 1fr)); gap:10px; max-width:420px; margin:14px auto; }
     .booth-btn { background:#317EFB; color:white; }
+    .topbar { display:flex; justify-content:space-between; align-items:center; max-width:520px; margin:0 auto 8px; }
+    .topbar .info { font-size:14px; opacity:.8; }
   </style>
 </head>
 <body>
   <h1>스탬프 투어</h1>
 
-  <!-- 로그인 / 회원가입 -->
-  <div id="auth-section">
-    <input type="email" id="email" placeholder="이메일"><br>
-    <input type="password" id="password" placeholder="비밀번호"><br>
-    <button id="signup">회원가입</button>
-    <button id="login">로그인</button>
+  <!-- 인증 영역 -->
+  <div id="auth-section" class="card">
+    <h2>로그인 / 회원가입</h2>
+    <div class="row" style="margin-bottom:8px;">
+      <input type="email" id="email" placeholder="이메일">
+      <input type="password" id="password" placeholder="비밀번호">
+    </div>
+    <div class="row">
+      <button id="signup" class="ghost">회원가입</button>
+      <button id="login" class="primary">로그인</button>
+    </div>
   </div>
 
-  <!-- 로그인 후 화면 -->
-  <div id="app-section" style="display:none;">
+  <!-- 앱 메인 -->
+  <div id="app-section" class="card" style="display:none;">
+    <div class="topbar">
+      <div class="info" id="user-display">로그인됨</div>
+      <button id="logout" class="ghost">로그아웃</button>
+    </div>
+
     <h2>내 도장판</h2>
     <div class="stampboard" id="stampBoard">
-      <img src="background.png" alt="도장판">
+      <img src="./background.png" alt="도장판 배경">
+      <!-- 여기 위로 스탬프 이미지들이 겹쳐서 올라옴 -->
     </div>
 
     <h2>부스 선택</h2>
-    <button class="booth-btn" onclick="visitBooth('인포메티카')">인포메티카</button>
-    <button class="booth-btn" onclick="visitBooth('Static')">Static</button>
-    <button class="booth-btn" onclick="visitBooth('셈터')">셈터</button>
-
-    <br><br>
-    <button id="logout">로그아웃</button>
+    <div class="booth-grid">
+      <button class="booth-btn" onclick="visitBooth('인포메티카')">인포메티카</button>
+      <button class="booth-btn" onclick="visitBooth('Static')">Static</button>
+      <button class="booth-btn" onclick="visitBooth('셈터')">셈터</button>
+      <!-- 필요하면 더 추가 -->
+    </div>
   </div>
 
+  <script type="module" src="app.js"></script>
   <script>
     if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("service-worker.js");
+      navigator.serviceWorker.register("./service-worker.js").catch(console.error);
     }
   </script>
 </body>
