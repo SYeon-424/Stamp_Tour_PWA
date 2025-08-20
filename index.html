@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <title>스탬프 투어</title>
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <h1>스탬프 투어</h1>
+
+  <!-- 로그인 / 회원가입 -->
+  <div id="auth-section">
+    <input type="email" id="email" placeholder="이메일">
+    <input type="password" id="password" placeholder="비밀번호">
+    <button id="signup">회원가입</button>
+    <button id="login">로그인</button>
+  </div>
+
+  <!-- 로그인 후 보이는 화면 -->
+  <div id="app-section" style="display:none;">
+    <h2>내 도장판</h2>
+    <div class="stampboard" id="stampBoard" style="position:relative;width:400px;height:400px;border:1px solid #ccc;">
+      <img src="background.png" style="width:100%;">
+    </div>
+
+    <h2>부스 선택</h2>
+    <button onclick="visitBooth('인포메티카')">인포메티카</button>
+    <button onclick="visitBooth('Static')">Static</button>
+    <button onclick="visitBooth('셈터')">셈터</button>
+
+    <br><br>
+    <button id="logout">로그아웃</button>
+  </div>
+</body>
+</html>
