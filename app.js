@@ -1,4 +1,4 @@
-// Firebase SDK import (v10 modular)
+// Firebase SDK (modular v10)
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
 import { 
   getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged 
@@ -22,7 +22,6 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
 
-// 🔹 UI 요소
 const authSection = document.getElementById("auth-section");
 const appSection = document.getElementById("app-section");
 const signupBtn = document.getElementById("signup");
@@ -36,10 +35,7 @@ signupBtn.onclick = () => {
   createUserWithEmailAndPassword(auth, email, password)
     .then((userCredential) => {
       const user = userCredential.user;
-      // DB에 초기 도장판 저장
-      set(ref(db, "users/" + user.uid), {
-        stamps: {}
-      });
+      set(ref(db, "users/" + user.uid), { stamps: {} });
     })
     .catch((err) => alert(err.message));
 };
@@ -48,16 +44,13 @@ signupBtn.onclick = () => {
 loginBtn.onclick = () => {
   const email = document.getElementById("email").value;
   const password = document.getElementById("password").value;
-  signInWithEmailAndPassword(auth, email, password)
-    .catch((err) => alert(err.message));
+  signInWithEmailAndPassword(auth, email, password).catch((err) => alert(err.message));
 };
 
 // 로그아웃
-logoutBtn.onclick = () => {
-  signOut(auth);
-};
+logoutBtn.onclick = () => signOut(auth);
 
-// 로그인 상태 변화 감지
+// 상태 감지
 onAuthStateChanged(auth, (user) => {
   if (user) {
     authSection.style.display = "none";
@@ -69,20 +62,18 @@ onAuthStateChanged(auth, (user) => {
   }
 });
 
-// 부스 방문 → 도장 찍기
+// 도장 찍기
 window.visitBooth = function(boothName) {
   const user = auth.currentUser;
   if (!user) return;
-
-  // DB에 해당 부스 도장 true로 저장
   set(ref(db, "users/" + user.uid + "/stamps/" + boothName), true)
     .then(() => loadStamps(user.uid));
 };
 
-// 도장판 불러오기
+// 도장 불러오기
 function loadStamps(uid) {
   const board = document.getElementById("stampBoard");
-  board.innerHTML = '<img src="background.png" style="width:100%;">'; // 초기화
+  board.innerHTML = '<img src="background.png" style="width:100%;">';
 
   const stampPositions = {
     "인포메티카": {x: 50, y: 100},
