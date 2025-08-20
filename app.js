@@ -7,15 +7,13 @@ import {
   getDatabase, ref, set, get 
 } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-database.js";
 
-// 🔹 여기에 네 Firebase 설정 붙여넣기
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT.firebaseapp.com",
-  databaseURL: "https://YOUR_PROJECT-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "YOUR_PROJECT",
-  storageBucket: "YOUR_PROJECT.appspot.com",
-  messagingSenderId: "SENDER_ID",
-  appId: "APP_ID"
+  apiKey: "AIzaSyAtw8q24h9eiCO8pIR8jqVaD_eIWtR-MCE",
+  authDomain: "stamptour-pwa.firebaseapp.com",
+  projectId: "stamptour-pwa",
+  storageBucket: "stamptour-pwa.firebasestorage.app",
+  messagingSenderId: "751009851376",
+  appId: "1:751009851376:web:e9280e3a92754de9ed5f35"
 };
 
 const app = initializeApp(firebaseConfig);
