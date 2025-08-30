@@ -5,7 +5,7 @@ import {
   signOut, onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
 import {
-  getDatabase, ref, set, get, update
+  getDatabase, ref, set, get, update, query, orderByChild, equalTo
 } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-database.js";
 
 const firebaseConfig = {
@@ -76,6 +76,15 @@ signupBtn.onclick = async () => {
   if (!nickname || !email || !password) return alert("닉네임, 이메일, 비밀번호를 모두 입력하세요.");
 
   try {
+    // ✅ 닉네임 중복 검사
+    const q = query(ref(db, "users"), orderByChild("profile/nickname"), equalTo(nickname));
+    const snap = await get(q);
+    if (snap.exists()) {
+      alert("이미 존재하는 닉네임입니다. 다른 닉네임을 사용해주세요.");
+      return;
+    }
+
+    // 회원가입 진행
     const cred = await createUserWithEmailAndPassword(auth, email, password);
     await set(ref(db, `users/${cred.user.uid}`), {
       profile: { email, nickname, createdAt: Date.now() },
@@ -117,10 +126,11 @@ onAuthStateChanged(auth, async (user) => {
     boothSection.style.display = "none";
     staffLoginSection.style.display = "none";
     staffSection.style.display = "none";
+    userDisplay.textContent = "";
   }
 });
 
-// ===== 도장 찍기 =====
+// ===== 도장 찍기 (사용자 본인) =====
 window.visitBooth = async function(boothName) {
   const user = auth.currentUser;
   if (!user) return alert("로그인 후 이용하세요.");
@@ -160,6 +170,7 @@ window.showBooth = function(name) {
   document.getElementById("booth-img").src = booth.img;
   document.getElementById("booth-desc").textContent = booth.desc;
 };
+
 window.closeBooth = function() {
   boothSection.style.display = "none";
   appSection.style.display = "block";
@@ -200,5 +211,41 @@ window.openStaffTab = function(tab) {
     buttons[0].classList.add("active");
   } else {
     buttons[1].classList.add("active");
+  }
+};
+
+// ===== Staff: 닉네임으로 도장 찍기 =====
+window.giveStamp = async function() {
+  const nickname = document.getElementById("target-nickname").value.trim();
+  const result = document.getElementById("stamp-result");
+  const boothName = document.getElementById("staff-booth-name").textContent.replace(" 관리", "");
+
+  if (!nickname) {
+    result.textContent = "❌ 닉네임을 입력하세요.";
+    return;
+  }
+
+  try {
+    const q = query(ref(db, "users"), orderByChild("profile/nickname"), equalTo(nickname));
+    const snap = await get(q);
+
+    if (!snap.exists()) {
+      result.textContent = "❌ 해당 닉네임을 가진 사용자가 없습니다.";
+      return;
+    }
+
+    const uid = Object.keys(snap.val())[0];
+    const imgPath = STAMP_IMAGES[boothName] || "./stamp.png";
+
+    await update(ref(db, `users/${uid}/stamps/${boothName}`), {
+      stamped: true,
+      img: imgPath,
+      ts: Date.now()
+    });
+
+    result.textContent = `✅ ${nickname} 님에게 ${boothName} 도장을 찍었습니다.`;
+  } catch (e) {
+    console.error(e);
+    result.textContent = "❌ 오류 발생: " + e.message;
   }
 };
