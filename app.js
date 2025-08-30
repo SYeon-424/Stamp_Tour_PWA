@@ -110,8 +110,7 @@ window.visitBooth = async function(boothName) {
 // 도장판 렌더링
 async function loadStamps(uid) {
   const board = document.getElementById("stampBoard");
-  // 배경만 남기고 초기화
-  board.innerHTML = '<img src="./background.png" alt="도장판 배경">';
+  board.innerHTML = ""; // 배경은 CSS로 넣었으니 초기화만 함
 
   try {
     const snap = await get(ref(db, `users/${uid}/stamps`));
@@ -128,11 +127,10 @@ async function loadStamps(uid) {
       const stampEl = document.createElement("img");
       stampEl.src = imgSrc;
       stampEl.alt = `${booth} 스탬프`;
-      stampEl.style.position = "absolute";
+      stampEl.className = "stamp";
       stampEl.style.left = pos.x + "px";
       stampEl.style.top  = pos.y + "px";
-      stampEl.style.width = "60px";
-      stampEl.style.pointerEvents = "none";
+
       board.appendChild(stampEl);
     });
   } catch (e) {
