@@ -5,10 +5,10 @@ import {
   signOut, onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
 import {
-  getDatabase, ref, set, get, update, query, orderByChild, equalTo
+  getDatabase, ref, set, get, update, query, orderByChild, equalTo, remove
 } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-database.js";
 
-/* 🔧 Firebase 설정 — databaseURL 반드시 콘솔에서 복사한 값으로! */
+/* Firebase 설정 */
 const firebaseConfig = {
   apiKey: "AIzaSyAtw8q24h9eiCO8pIR8jqVaD_eIWtR-MCE",
   authDomain: "stamptour-pwa.firebaseapp.com",
@@ -16,16 +16,27 @@ const firebaseConfig = {
   storageBucket: "stamptour-pwa.appspot.com",
   messagingSenderId: "751009851376",
   appId: "1:751009851376:web:e9280e3a92754de9ed5f35",
-  databaseURL: "https://stamptour-pwa-default-rtdb.asia-southeast1.firebasedatabase.app" // 또는 firebaseio.com
+  databaseURL: "https://stamptour-pwa-default-rtdb.asia-southeast1.firebasedatabase.app"
 };
-
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db   = getDatabase(app);
 
-/* ========== 스탬프/부스 이미지 ==========
-   스탬프 이미지는 배경과 "같은 크기"의 PNG 13개
-======================================== */
+/* ===== 상수: 예약 ===== */
+const MAX_PER_SLOT = 2;          // 동시간대 최대 인원
+const TIMES = buildTimeSlots(10, 0, 17, 0, 30); // 10:00~17:00, 30분 간격
+function buildTimeSlots(sHour, sMin, eHour, eMin, intervalMin) {
+  const out = [];
+  let d = new Date(2000,0,1,sHour,sMin,0,0);
+  const end = new Date(2000,0,1,eHour,eMin,0,0);
+  while (d <= end) {
+    out.push(d.toTimeString().slice(0,5));
+    d = new Date(d.getTime() + intervalMin*60000);
+  }
+  return out;
+}
+
+/* ===== 스탬프/부스 이미지 ===== */
 const STAMP_IMAGES = {
   "Static": "./stamps/static.png",
   "인포메티카": "./stamps/informatica.png",
@@ -65,10 +76,11 @@ const STAFF_PASSWORDS = {
   "pw11": "스팀","pw12": "오토메틱","pw13": "플럭스"
 };
 
-/* ========== DOM refs ========== */
+/* ===== DOM ===== */
 const authSection = document.getElementById("auth-section");
 const appSection  = document.getElementById("app-section");
 const boothSection = document.getElementById("booth-section");
+const reserveSection = document.getElementById("reserve-section");
 const staffLoginSection = document.getElementById("staff-login-section");
 const staffSection = document.getElementById("staff-section");
 
@@ -77,38 +89,26 @@ const loginBtn    = document.getElementById("login");
 const logoutBtn   = document.getElementById("logout");
 const userDisplay = document.getElementById("user-display");
 
-/* ========== Auth ========== */
-// 회원가입 (닉네임 중복 검사)
+/* ===== Auth ===== */
 signupBtn.onclick = async () => {
   const nickname = document.getElementById("nickname").value.trim();
   const email = document.getElementById("email").value.trim();
   const password = document.getElementById("password").value;
   if (!nickname || !email || !password) return alert("닉네임, 이메일, 비밀번호를 모두 입력하세요.");
-
   try {
     const q = query(ref(db, "users"), orderByChild("profile/nickname"), equalTo(nickname));
     const dup = await get(q);
-    if (dup.exists()) {
-      alert("이미 존재하는 닉네임입니다. 다른 닉네임을 사용해주세요.");
-      return;
-    }
-
+    if (dup.exists()) return alert("이미 존재하는 닉네임입니다. 다른 닉네임을 사용해주세요.");
     const cred = await createUserWithEmailAndPassword(auth, email, password);
-    await set(ref(db, `users/${cred.user.uid}`), {
-      profile: { email, nickname, createdAt: Date.now() },
-      stamps: {}
-    });
+    await set(ref(db, `users/${cred.user.uid}`), { profile: { email, nickname, createdAt: Date.now() }, stamps: {} });
     alert("회원가입 완료!");
   } catch (e) { alert(e.message); }
 };
-
 loginBtn.onclick = async () => {
   const email = document.getElementById("email").value.trim();
   const password = document.getElementById("password").value;
-  try { await signInWithEmailAndPassword(auth, email, password); }
-  catch (e) { alert(e.message); }
+  try { await signInWithEmailAndPassword(auth, email, password); } catch (e) { alert(e.message); }
 };
-
 logoutBtn.onclick = () => signOut(auth).catch(console.error);
 
 onAuthStateChanged(auth, async (user) => {
@@ -116,6 +116,7 @@ onAuthStateChanged(auth, async (user) => {
     authSection.style.display = "none";
     appSection.style.display  = "block";
     boothSection.style.display = "none";
+    reserveSection.style.display = "none";
     staffLoginSection.style.display = "none";
     staffSection.style.display = "none";
 
@@ -125,128 +126,279 @@ onAuthStateChanged(auth, async (user) => {
     } catch { userDisplay.textContent = user.email || ""; }
 
     await loadStamps(user.uid);
+    await renderBoothList();
   } else {
     authSection.style.display = "block";
     appSection.style.display  = "none";
     boothSection.style.display = "none";
+    reserveSection.style.display = "none";
     staffLoginSection.style.display = "none";
     staffSection.style.display = "none";
     userDisplay.textContent = "";
   }
 });
 
-/* ========== 도장판 렌더(오버레이) ========== */
+/* ===== 도장 렌더 ===== */
 async function loadStamps(uid) {
   const board = document.getElementById("stampBoard");
   board.innerHTML = "";
-
   const bg = document.createElement("img");
-  bg.src = "./background.png";
-  bg.alt = "도장판 배경";
+  bg.src = "./background.png"; bg.alt = "도장판 배경";
   board.appendChild(bg);
-
   try {
     const snap = await get(ref(db, `users/${uid}/stamps`));
     if (!snap.exists()) return;
     const stamps = snap.val();
-
     Object.keys(stamps).forEach((booth) => {
-      const data = stamps[booth];
-      if (!data?.stamped) return;
+      const data = stamps[booth]; if (!data?.stamped) return;
       const layer = document.createElement("img");
       layer.src = data.img || STAMP_IMAGES[booth] || "./stamp.png";
       layer.alt = `${booth} 스탬프`;
       board.appendChild(layer);
     });
-  } catch (e) {
-    console.error(e);
-  }
+  } catch (e) { console.error(e); }
 }
-
-/* ========== 사용자 본인 도장찍기(선택적으로 사용) ========== */
 window.visitBooth = async function(boothName) {
-  const user = auth.currentUser;
-  if (!user) return alert("로그인 후 이용하세요.");
-
+  const user = auth.currentUser; if (!user) return alert("로그인 후 이용하세요.");
   const imgPath = STAMP_IMAGES[boothName] || "./stamp.png";
   try {
-    await update(ref(db, `users/${user.uid}/stamps/${boothName}`), {
-      stamped: true, img: imgPath, ts: Date.now()
-    });
+    await update(ref(db, `users/${user.uid}/stamps/${boothName}`), { stamped: true, img: imgPath, ts: Date.now() });
     await loadStamps(user.uid);
   } catch (e) { alert("도장 찍기 실패: " + e.message); }
 };
 
-/* ========== 부스 소개 ========== */
+/* ===== 부스 소개 ===== */
 window.showBooth = function(name) {
-  const booth = BOOTH_INFO[name];
-  if (!booth) return;
-  appSection.style.display = "none";
-  boothSection.style.display = "block";
+  const booth = BOOTH_INFO[name]; if (!booth) return;
+  appSection.style.display = "none"; boothSection.style.display = "block";
   document.getElementById("booth-name").textContent = name;
   document.getElementById("booth-img").src = booth.img;
   document.getElementById("booth-desc").textContent = booth.desc;
 };
-window.closeBooth = function() {
-  boothSection.style.display = "none";
+window.closeBooth = function() { boothSection.style.display = "none"; appSection.style.display = "block"; };
+
+/* ===== 홈: 부스 리스트 렌더 (예약버튼 포함) ===== */
+async function renderBoothList() {
+  const box = document.getElementById("booth-list");
+  box.innerHTML = "";
+  for (const name of Object.keys(BOOTH_INFO)) {
+    // 예약 토글 상태 읽기
+    let enabled = false;
+    try {
+      const s = await get(ref(db, `settings/booths/${name}/reservationEnabled`));
+      enabled = !!(s.exists() && s.val());
+    } catch {}
+    const row = document.createElement("div");
+    row.className = "booth-row";
+    const introBtn = document.createElement("button");
+    introBtn.className = "booth-btn"; introBtn.textContent = name;
+    introBtn.onclick = () => showBooth(name);
+    row.appendChild(introBtn);
+
+    if (enabled) {
+      const rBtn = document.createElement("button");
+      rBtn.className = "booth-btn"; rBtn.textContent = "예약";
+      rBtn.onclick = () => openReserve(name);
+      row.appendChild(rBtn);
+    }
+    box.appendChild(row);
+  }
+}
+
+/* ===== 예약 페이지 ===== */
+let currentReserveBooth = null;
+async function openReserve(boothName) {
+  currentReserveBooth = boothName;
+  appSection.style.display = "none";
+  reserveSection.style.display = "block";
+  document.getElementById("reserve-title").textContent = `${boothName} 예약`;
+  document.getElementById("reserve-capacity").textContent = MAX_PER_SLOT;
+
+  // 시간 옵션 채우기
+  const sel = document.getElementById("reserve-slot");
+  sel.innerHTML = "";
+  for (const t of TIMES) {
+    const opt = document.createElement("option");
+    opt.value = t; opt.textContent = t; sel.appendChild(opt);
+  }
+
+  // 액션 버튼
+  const actionBtn = document.getElementById("reserve-action");
+  actionBtn.onclick = reserveOrCancel;
+
+  await refreshReserveTable();
+}
+window.closeReserve = function() {
+  reserveSection.style.display = "none";
   appSection.style.display = "block";
 };
 
-/* ========== Staff Only ========== */
+async function refreshReserveTable() {
+  const tbody = document.getElementById("reserve-tbody");
+  const msg = document.getElementById("reserve-msg");
+  const user = auth.currentUser;
+  if (!user) { msg.textContent = "로그인 후 이용하세요."; return; }
+
+  // 현재 사용자 닉네임
+  let myNick = user.email;
+  try {
+    const s = await get(ref(db, `users/${user.uid}/profile/nickname`));
+    if (s.exists()) myNick = s.val();
+  } catch {}
+
+  // 모든 예약 읽기
+  let data = {};
+  try {
+    const snap = await get(ref(db, `reservations/${currentReserveBooth}`));
+    if (snap.exists()) data = snap.val();
+  } catch {}
+
+  // 표 렌더
+  tbody.innerHTML = "";
+  let mySlot = null;
+  for (const t of TIMES) {
+    const row = document.createElement("tr");
+    const tdTime = document.createElement("td"); tdTime.textContent = t; row.appendChild(tdTime);
+
+    const tdNames = document.createElement("td");
+    const users = data[t] ? Object.values(data[t]).map(v => v.nickname) : [];
+    tdNames.textContent = users.length ? users.join(", ") : "-";
+    row.appendChild(tdNames);
+    tbody.appendChild(row);
+
+    // 내가 예약한 슬롯 찾기
+    if (data[t] && data[t][user.uid]) mySlot = t;
+  }
+
+  // 버튼 상태
+  const sel = document.getElementById("reserve-slot");
+  const actionBtn = document.getElementById("reserve-action");
+  if (mySlot) {
+    sel.value = mySlot;
+    actionBtn.textContent = "예약취소";
+    actionBtn.dataset.mode = "cancel";
+    msg.textContent = `현재 ${currentReserveBooth}에 ${mySlot} 예약됨.`;
+  } else {
+    actionBtn.textContent = "예약";
+    actionBtn.dataset.mode = "reserve";
+    msg.textContent = "";
+  }
+
+  // 선택된 슬롯이 꽉 찼으면 예약 버튼 비활성화
+  const selected = sel.value;
+  const count = data[selected] ? Object.keys(data[selected]).length : 0;
+  actionBtn.disabled = (actionBtn.dataset.mode === "reserve" && count >= MAX_PER_SLOT);
+  sel.onchange = () => {
+    const c = data[sel.value] ? Object.keys(data[sel.value]).length : 0;
+    if (actionBtn.dataset.mode === "reserve") {
+      actionBtn.disabled = (c >= MAX_PER_SLOT);
+    }
+  };
+}
+
+async function reserveOrCancel() {
+  const user = auth.currentUser;
+  if (!user) return alert("로그인 후 이용하세요.");
+
+  // 내 닉네임
+  let myNick = user.email;
+  try {
+    const s = await get(ref(db, `users/${user.uid}/profile/nickname`));
+    if (s.exists()) myNick = s.val();
+  } catch {}
+
+  const sel = document.getElementById("reserve-slot");
+  const slot = sel.value;
+  const mode = document.getElementById("reserve-action").dataset.mode;
+
+  if (mode === "cancel") {
+    // 내가 예약한 슬롯 찾고 제거
+    const all = await get(ref(db, `reservations/${currentReserveBooth}`));
+    if (all.exists()) {
+      const obj = all.val();
+      for (const t of Object.keys(obj)) {
+        if (obj[t][user.uid]) {
+          await remove(ref(db, `reservations/${currentReserveBooth}/${t}/${user.uid}`));
+        }
+      }
+    }
+  } else {
+    // 예약 전, 이미 예약이 있으면 모두 삭제(한 사람 1슬롯 정책)
+    const all = await get(ref(db, `reservations/${currentReserveBooth}`));
+    if (all.exists()) {
+      const obj = all.val();
+      for (const t of Object.keys(obj)) {
+        if (obj[t][user.uid]) {
+          await remove(ref(db, `reservations/${currentReserveBooth}/${t}/${user.uid}`));
+        }
+      }
+    }
+    // 용량 확인 후 추가
+    const currentSnap = await get(ref(db, `reservations/${currentReserveBooth}/${slot}`));
+    const cnt = currentSnap.exists() ? Object.keys(currentSnap.val()).length : 0;
+    if (cnt >= MAX_PER_SLOT) {
+      alert("해당 시간은 이미 정원이 찼습니다.");
+      return;
+    }
+    await set(ref(db, `reservations/${currentReserveBooth}/${slot}/${user.uid}`), {
+      nickname: myNick, ts: Date.now()
+    });
+  }
+
+  await refreshReserveTable();
+}
+
+/* ===== Staff Only ===== */
 window.openStaffLogin = function() {
-  appSection.style.display = "none";
-  staffLoginSection.style.display = "block";
+  appSection.style.display = "none"; staffLoginSection.style.display = "block";
 };
 window.closeStaffLogin = function() {
-  staffLoginSection.style.display = "none";
-  appSection.style.display = "block";
+  staffLoginSection.style.display = "none"; appSection.style.display = "block";
 };
-window.checkStaffPassword = function() {
+window.checkStaffPassword = async function() {
   const pw = document.getElementById("staff-password").value.trim();
-  if (STAFF_PASSWORDS[pw]) {
-    const boothName = STAFF_PASSWORDS[pw];
-    staffLoginSection.style.display = "none";
-    staffSection.style.display = "block";
-    document.getElementById("staff-booth-name").textContent = `${boothName} 관리`;
-    openStaffTab("stamp");
-  } else {
-    alert("비밀번호가 올바르지 않습니다.");
-  }
+  if (!STAFF_PASSWORDS[pw]) return alert("비밀번호가 올바르지 않습니다.");
+  const boothName = STAFF_PASSWORDS[pw];
+  staffLoginSection.style.display = "none"; staffSection.style.display = "block";
+  document.getElementById("staff-booth-name").textContent = `${boothName} 관리`;
+  openStaffTab("stamp");
+
+  // 예약 토글 초기 상태 바인딩
+  const toggle = document.getElementById("reserve-toggle");
+  const msg = document.getElementById("reserve-toggle-msg");
+  const s = await get(ref(db, `settings/booths/${boothName}/reservationEnabled`));
+  toggle.checked = !!(s.exists() && s.val());
+  msg.textContent = toggle.checked ? "현재: 예약 ON" : "현재: 예약 OFF";
+  toggle.onchange = async () => {
+    await set(ref(db, `settings/booths/${boothName}/reservationEnabled`), toggle.checked);
+    msg.textContent = toggle.checked ? "현재: 예약 ON" : "현재: 예약 OFF";
+    await renderBoothList(); // 홈 리스트 갱신
+  };
 };
 window.closeStaff = function() {
-  staffSection.style.display = "none";
-  appSection.style.display = "block";
+  staffSection.style.display = "none"; appSection.style.display = "block";
 };
 window.openStaffTab = function(tab) {
   document.getElementById("staff-tab-stamp").style.display   = (tab === "stamp") ? "block" : "none";
   document.getElementById("staff-tab-reserve").style.display = (tab === "reserve") ? "block" : "none";
-
   const buttons = document.querySelectorAll(".tab-btn");
   buttons.forEach(b => b.classList.remove("active"));
   (tab === "stamp" ? buttons[0] : buttons[1]).classList.add("active");
 };
 
-/* ========== Staff: 닉네임으로 도장찍기 ========== */
+/* ===== Staff: 닉네임 도장찍기 ===== */
 window.giveStamp = async function() {
   const nickname = document.getElementById("target-nickname").value.trim();
   const result = document.getElementById("stamp-result");
   const boothName = document.getElementById("staff-booth-name").textContent.replace(" 관리", "");
   if (!nickname) { result.textContent = "❌ 닉네임을 입력하세요."; return; }
-
   try {
     const q = query(ref(db, "users"), orderByChild("profile/nickname"), equalTo(nickname));
     const snap = await get(q);
     if (!snap.exists()) { result.textContent = "❌ 해당 닉네임 사용자가 없습니다."; return; }
-
     const uid = Object.keys(snap.val())[0];
     const imgPath = STAMP_IMAGES[boothName] || "./stamp.png";
-    await update(ref(db, `users/${uid}/stamps/${boothName}`), {
-      stamped: true, img: imgPath, ts: Date.now()
-    });
-
+    await update(ref(db, `users/${uid}/stamps/${boothName}`), { stamped: true, img: imgPath, ts: Date.now() });
     result.textContent = `✅ ${nickname} 님에게 [${boothName}] 도장을 찍었습니다.`;
-  } catch (e) {
-    console.error(e);
-    result.textContent = "❌ 오류 발생: " + e.message;
-  }
+  } catch (e) { console.error(e); result.textContent = "❌ 오류: " + e.message; }
 };
