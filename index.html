@@ -65,14 +65,14 @@
     .stampboard {
       position: relative;
       width: 100%;
-      max-width: 420px;
-      aspect-ratio: 3/2;
+      max-width: 600px;
+      aspect-ratio: 3/2; /* 배경 비율에 맞게 수정 */
       margin: 12px auto;
       border: 2px solid #444;
       border-radius: 12px;
       overflow: hidden;
 
-      background: #000 url("./background.png") center/contain no-repeat;
+      background: #000 url("./background.png") center/cover no-repeat;
     }
 
     .stampboard .stamp {
@@ -120,6 +120,13 @@
       opacity: .8;
       color: #ccc;
     }
+
+    /* === 부스 소개 화면 === */
+    #booth-section img {
+      max-width: 100%;
+      border-radius: 8px;
+      margin: 10px 0;
+    }
   </style>
 </head>
 <body>
@@ -146,16 +153,32 @@
     </div>
 
     <h2>내 도장판</h2>
-    <div class="stampboard" id="stampBoard">
-      <!-- 도장판 = background.png / 도장 = JS로 겹쳐서 추가 -->
-    </div>
+    <div class="stampboard" id="stampBoard"></div>
 
     <h2>부스 선택</h2>
     <div class="booth-grid">
-      <button class="booth-btn" onclick="visitBooth('인포메티카')">인포메티카</button>
-      <button class="booth-btn" onclick="visitBooth('Static')">Static</button>
-      <button class="booth-btn" onclick="visitBooth('셈터')">셈터</button>
+      <button class="booth-btn" onclick="showBooth('Static')">Static</button>
+      <button class="booth-btn" onclick="showBooth('인포메티카')">인포메티카</button>
+      <button class="booth-btn" onclick="showBooth('배째미')">배째미</button>
+      <button class="booth-btn" onclick="showBooth('생동감')">생동감</button>
+      <button class="booth-btn" onclick="showBooth('마스터')">마스터</button>
+      <button class="booth-btn" onclick="showBooth('Z-one')">Z-one</button>
+      <button class="booth-btn" onclick="showBooth('셈터')">셈터</button>
+      <button class="booth-btn" onclick="showBooth('시그너스')">시그너스</button>
+      <button class="booth-btn" onclick="showBooth('케미어스')">케미어스</button>
+      <button class="booth-btn" onclick="showBooth('넛츠')">넛츠</button>
+      <button class="booth-btn" onclick="showBooth('스팀')">스팀</button>
+      <button class="booth-btn" onclick="showBooth('오토메틱')">오토메틱</button>
+      <button class="booth-btn" onclick="showBooth('플럭스')">플럭스</button>
     </div>
+  </div>
+
+  <!-- 부스 소개 화면 -->
+  <div id="booth-section" class="card" style="display:none;">
+    <button onclick="closeBooth()" class="ghost">← 뒤로가기</button>
+    <h2 id="booth-name"></h2>
+    <img id="booth-img" alt="부스 소개 이미지">
+    <p id="booth-desc"></p>
   </div>
 
   <script type="module" src="app.js"></script>
