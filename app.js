@@ -170,4 +170,16 @@ window.checkStaffPassword = function() {
     staffLoginSection.style.display = "none";
     staffSection.style.display = "block";
     document.getElementById("staff-booth-name").textContent = boothName + " 관리";
-    openStaffTab("stamp
+    openStaffTab("stamp");
+  } else {
+    alert("비밀번호가 올바르지 않습니다.");
+  }
+};
+window.closeStaff = function() {
+  staffSection.style.display = "none";
+  appSection.style.display = "block";
+};
+window.openStaffTab = function(tab) {
+  document.getElementById("staff-tab-stamp").style.display = (tab === "stamp") ? "block" : "none";
+  document.getElementById("staff-tab-reserve").style.display = (tab === "reserve") ? "block" : "none";
+};
