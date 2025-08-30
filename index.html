@@ -12,7 +12,7 @@
     h1,h2 { margin:8px 0 16px; color:#fff; }
     .card { max-width:480px; margin:12px auto; padding:16px; border-radius:12px; background:#1e1e1e; box-shadow:0 4px 12px rgba(0,0,0,.5); }
     .row { display:flex; gap:8px; justify-content:center; align-items:center; flex-wrap:wrap; }
-    input { padding:10px 12px; font-size:16px; border:1px solid #333; border-radius:8px; min-width:220px; background:#2a2a2a; color:#fff; }
+    input, select { padding:10px 12px; font-size:16px; border:1px solid #333; border-radius:8px; min-width:220px; background:#2a2a2a; color:#fff; }
     button { padding:10px 14px; font-size:15px; border:none; border-radius:10px; cursor:pointer; }
     .primary{ background:#317EFB; color:#fff; } .ghost{ background:transparent; border:1px solid #317EFB; color:#317EFB; }
 
@@ -20,8 +20,9 @@
     .stampboard { position:relative; width:100%; max-width:600px; aspect-ratio:3/2; margin:12px auto; border:2px solid #444; border-radius:12px; overflow:hidden; }
     .stampboard img { position:absolute; top:0; left:0; width:100%; height:100%; object-fit:cover; pointer-events:none; }
 
-    /* 부스 버튼 */
-    .booth-grid { display:flex; flex-direction:column; gap:10px; max-width:420px; margin:14px auto; }
+    /* 부스 리스트 (JS로 렌더) */
+    .booth-list { display:flex; flex-direction:column; gap:10px; max-width:420px; margin:14px auto; }
+    .booth-row { display:flex; gap:8px; justify-content:center; }
     .booth-btn { background:#2a2a2a; color:#fff; border:1px solid #444; padding:12px; border-radius:10px; transition:background .2s; }
     .booth-btn:hover { background:#317EFB; color:#fff; }
 
@@ -36,7 +37,11 @@
     .tab-btn { background:#2a2a2a; border:none; color:#fff; padding:8px 14px; border-radius:8px; cursor:pointer; transition:all .2s; font-weight:500; }
     .tab-btn.active { background:#317EFB; color:#fff; }
 
-    #booth-section img { max-width:100%; border-radius:8px; margin:10px 0; }
+    /* 예약 테이블 */
+    table { width:100%; border-collapse:collapse; margin:10px 0; }
+    th, td { border:1px solid #444; padding:8px; }
+    th { background:#2a2a2a; }
+    .hint { font-size:13px; color:#bbb; }
   </style>
 </head>
 <body>
@@ -67,21 +72,7 @@
     <div class="stampboard" id="stampBoard"></div>
 
     <h2>부스 선택</h2>
-    <div class="booth-grid">
-      <button class="booth-btn" onclick="showBooth('Static')">Static</button>
-      <button class="booth-btn" onclick="showBooth('인포메티카')">인포메티카</button>
-      <button class="booth-btn" onclick="showBooth('배째미')">배째미</button>
-      <button class="booth-btn" onclick="showBooth('생동감')">생동감</button>
-      <button class="booth-btn" onclick="showBooth('마스터')">마스터</button>
-      <button class="booth-btn" onclick="showBooth('Z-one')">Z-one</button>
-      <button class="booth-btn" onclick="showBooth('셈터')">셈터</button>
-      <button class="booth-btn" onclick="showBooth('시그너스')">시그너스</button>
-      <button class="booth-btn" onclick="showBooth('케미어스')">케미어스</button>
-      <button class="booth-btn" onclick="showBooth('넛츠')">넛츠</button>
-      <button class="booth-btn" onclick="showBooth('스팀')">스팀</button>
-      <button class="booth-btn" onclick="showBooth('오토메틱')">오토메틱</button>
-      <button class="booth-btn" onclick="showBooth('플럭스')">플럭스</button>
-    </div>
+    <div id="booth-list" class="booth-list"><!-- JS가 렌더 --></div>
 
     <hr style="margin:20px 0; border:1px solid #444;" />
     <button class="booth-btn" onclick="openStaffLogin()">Staff Only</button>
@@ -93,6 +84,25 @@
     <h2 id="booth-name"></h2>
     <img id="booth-img" alt="부스 소개 이미지" />
     <p id="booth-desc"></p>
+  </div>
+
+  <!-- 예약 페이지 -->
+  <div id="reserve-section" class="card" style="display:none; position:relative;">
+    <button class="back-btn" onclick="closeReserve()">«</button>
+    <h2 id="reserve-title">예약</h2>
+
+    <table>
+      <thead><tr><th style="width:120px;">시간</th><th>닉네임</th></tr></thead>
+      <tbody id="reserve-tbody"><tr><td colspan="2">불러오는 중…</td></tr></tbody>
+    </table>
+
+    <p class="hint">※ 동시간대 최대 <b id="reserve-capacity">2</b>명 예약 가능</p>
+
+    <div class="row" style="gap:8px;">
+      <select id="reserve-slot"></select>
+      <button id="reserve-action" class="primary">예약</button>
+    </div>
+    <p id="reserve-msg" class="hint" style="margin-top:8px;"></p>
   </div>
 
   <!-- Staff 로그인 -->
@@ -123,12 +133,17 @@
         <input type="text" id="target-nickname" placeholder="닉네임 입력" />
         <button class="primary" onclick="giveStamp()">도장 찍기</button>
       </div>
-      <p id="stamp-result" style="margin-top:10px; font-size:14px; color:#ccc;"></p>
+      <p id="stamp-result" class="hint" style="margin-top:10px;"></p>
     </div>
 
-    <!-- 예약 탭 (추후 구현) -->
+    <!-- 예약 탭 -->
     <div id="staff-tab-reserve" style="display:none;">
-      <p>여기 예약 관리 기능 들어감</p>
+      <label style="display:flex; align-items:center; gap:8px; justify-content:center;">
+        <input type="checkbox" id="reserve-toggle" />
+        <span>이 부스 예약 기능 사용</span>
+      </label>
+      <p class="hint" style="margin-top:6px;">켜면 홈의 해당 부스에 <b>예약</b> 버튼이 보입니다.</p>
+      <p id="reserve-toggle-msg" class="hint"></p>
     </div>
   </div>
 
