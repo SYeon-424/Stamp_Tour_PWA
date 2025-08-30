@@ -20,7 +20,7 @@
     .stampboard { position:relative; width:100%; max-width:600px; aspect-ratio:3/2; margin:12px auto; border:2px solid #444; border-radius:12px; overflow:hidden; }
     .stampboard img { position:absolute; top:0; left:0; width:100%; height:100%; object-fit:cover; pointer-events:none; }
 
-    /* 부스 리스트 (JS로 렌더) */
+    /* 부스 리스트 (JS 렌더) */
     .booth-list { display:flex; flex-direction:column; gap:10px; max-width:420px; margin:14px auto; }
     .booth-row { display:flex; gap:8px; justify-content:center; }
     .booth-btn { background:#2a2a2a; color:#fff; border:1px solid #444; padding:12px; border-radius:10px; transition:background .2s; }
@@ -72,7 +72,7 @@
     <div class="stampboard" id="stampBoard"></div>
 
     <h2>부스 선택</h2>
-    <div id="booth-list" class="booth-list"><!-- JS가 렌더 --></div>
+    <div id="booth-list" class="booth-list"><!-- JS 렌더 --></div>
 
     <hr style="margin:20px 0; border:1px solid #444;" />
     <button class="booth-btn" onclick="openStaffLogin()">Staff Only</button>
@@ -102,7 +102,6 @@
       <select id="reserve-slot"></select>
       <button id="reserve-action" class="primary">예약</button>
     </div>
-    <p id="reserve-msg" class="hint" style="margin-top:8px;"></p>
   </div>
 
   <!-- Staff 로그인 -->
@@ -142,8 +141,6 @@
         <input type="checkbox" id="reserve-toggle" />
         <span>이 부스 예약 기능 사용</span>
       </label>
-      <p class="hint" style="margin-top:6px;">켜면 홈의 해당 부스에 <b>예약</b> 버튼이 보입니다.</p>
-      <p id="reserve-toggle-msg" class="hint"></p>
     </div>
   </div>
 
