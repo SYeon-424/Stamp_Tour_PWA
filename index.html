@@ -135,13 +135,6 @@
       font-weight: bold;
     }
 
-    .tab-divider {
-      border: none;
-      border-top: 2px solid #444;
-      margin: 8px 0;
-    }
-
-
     /* === 부스 소개 화면 === */
     #booth-section img {
       max-width: 100%;
@@ -172,6 +165,12 @@
       background: #317EFB;
       color: #fff;
     }
+
+    .tab-divider {
+      border: none;
+      border-top: 2px solid #444;
+      margin: 8px 0;
+    }
   </style>
 </head>
 <body>
@@ -181,6 +180,7 @@
   <div id="auth-section" class="card">
     <h2>로그인 / 회원가입</h2>
     <div class="row" style="margin-bottom:8px;">
+      <input type="text" id="nickname" placeholder="닉네임">
       <input type="email" id="email" placeholder="이메일">
       <input type="password" id="password" placeholder="비밀번호">
     </div>
@@ -243,14 +243,13 @@
   <div id="staff-section" class="card" style="display:none;">
     <button class="back-btn" onclick="closeStaff()">«</button>
     <h2 id="staff-booth-name">부스 관리</h2>
-  
     <hr class="tab-divider">
     <div class="tab-bar">
       <button class="tab-btn active" onclick="openStaffTab('stamp')">도장</button>
       <button class="tab-btn" onclick="openStaffTab('reserve')">예약</button>
     </div>
     <hr class="tab-divider">
-  
+
     <div id="staff-tab-stamp" style="display:block;">
       <p>여기 도장 찍기 기능 들어감</p>
     </div>
@@ -258,7 +257,6 @@
       <p>여기 예약 관리 기능 들어감</p>
     </div>
   </div>
-
 
   <script type="module" src="app.js"></script>
   <script>
