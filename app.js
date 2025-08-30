@@ -22,17 +22,14 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db   = getDatabase(app);
 
-/* ===== 상수: 예약 ===== */
-const MAX_PER_SLOT = 2;          // 동시간대 최대 인원
+/* ===== 예약 상수 ===== */
+const MAX_PER_SLOT = 2;
 const TIMES = buildTimeSlots(10, 0, 17, 0, 30); // 10:00~17:00, 30분 간격
 function buildTimeSlots(sHour, sMin, eHour, eMin, intervalMin) {
   const out = [];
   let d = new Date(2000,0,1,sHour,sMin,0,0);
   const end = new Date(2000,0,1,eHour,eMin,0,0);
-  while (d <= end) {
-    out.push(d.toTimeString().slice(0,5));
-    d = new Date(d.getTime() + intervalMin*60000);
-  }
+  while (d <= end) { out.push(d.toTimeString().slice(0,5)); d = new Date(d.getTime()+intervalMin*60000); }
   return out;
 }
 
@@ -52,7 +49,6 @@ const STAMP_IMAGES = {
   "오토메틱": "./stamps/automatic.png",
   "플럭스": "./stamps/flux.png"
 };
-
 const BOOTH_INFO = {
   "Static": { img: "./booths/static.png", desc: "Static 부스 소개글입니다." },
   "인포메티카": { img: "./booths/informatica.png", desc: "인포메티카 부스 소개글입니다." },
@@ -68,8 +64,7 @@ const BOOTH_INFO = {
   "오토메틱": { img: "./booths/automatic.png", desc: "오토메틱 부스 소개글입니다." },
   "플럭스": { img: "./booths/flux.png", desc: "플럭스 부스 소개글입니다." }
 };
-
-/* Staff 비밀번호 → 부스명 */
+/* Staff PW → 부스 */
 const STAFF_PASSWORDS = {
   "pw1": "Static","pw2": "인포메티카","pw3": "배째미","pw4": "생동감","pw5": "마스터",
   "pw6": "Z-one","pw7": "셈터","pw8": "시그너스","pw9": "케미어스","pw10": "넛츠",
@@ -83,10 +78,9 @@ const boothSection = document.getElementById("booth-section");
 const reserveSection = document.getElementById("reserve-section");
 const staffLoginSection = document.getElementById("staff-login-section");
 const staffSection = document.getElementById("staff-section");
-
-const signupBtn   = document.getElementById("signup");
-const loginBtn    = document.getElementById("login");
-const logoutBtn   = document.getElementById("logout");
+const signupBtn = document.getElementById("signup");
+const loginBtn  = document.getElementById("login");
+const logoutBtn = document.getElementById("logout");
 const userDisplay = document.getElementById("user-display");
 
 /* ===== Auth ===== */
@@ -142,8 +136,7 @@ onAuthStateChanged(auth, async (user) => {
 async function loadStamps(uid) {
   const board = document.getElementById("stampBoard");
   board.innerHTML = "";
-  const bg = document.createElement("img");
-  bg.src = "./background.png"; bg.alt = "도장판 배경";
+  const bg = document.createElement("img"); bg.src = "./background.png"; bg.alt = "도장판 배경";
   board.appendChild(bg);
   try {
     const snap = await get(ref(db, `users/${uid}/stamps`));
@@ -182,7 +175,6 @@ async function renderBoothList() {
   const box = document.getElementById("booth-list");
   box.innerHTML = "";
   for (const name of Object.keys(BOOTH_INFO)) {
-    // 예약 토글 상태 읽기
     let enabled = false;
     try {
       const s = await get(ref(db, `settings/booths/${name}/reservationEnabled`));
@@ -214,46 +206,30 @@ async function openReserve(boothName) {
   document.getElementById("reserve-title").textContent = `${boothName} 예약`;
   document.getElementById("reserve-capacity").textContent = MAX_PER_SLOT;
 
-  // 시간 옵션 채우기
   const sel = document.getElementById("reserve-slot");
   sel.innerHTML = "";
-  for (const t of TIMES) {
-    const opt = document.createElement("option");
-    opt.value = t; opt.textContent = t; sel.appendChild(opt);
-  }
+  for (const t of TIMES) { const opt = document.createElement("option"); opt.value=t; opt.textContent=t; sel.appendChild(opt); }
 
-  // 액션 버튼
   const actionBtn = document.getElementById("reserve-action");
   actionBtn.onclick = reserveOrCancel;
 
   await refreshReserveTable();
 }
-window.closeReserve = function() {
-  reserveSection.style.display = "none";
-  appSection.style.display = "block";
-};
+window.closeReserve = function() { reserveSection.style.display = "none"; appSection.style.display = "block"; };
 
 async function refreshReserveTable() {
   const tbody = document.getElementById("reserve-tbody");
-  const msg = document.getElementById("reserve-msg");
-  const user = auth.currentUser;
-  if (!user) { msg.textContent = "로그인 후 이용하세요."; return; }
+  const user = auth.currentUser; if (!user) return;
 
-  // 현재 사용자 닉네임
+  // 내 닉네임
   let myNick = user.email;
-  try {
-    const s = await get(ref(db, `users/${user.uid}/profile/nickname`));
-    if (s.exists()) myNick = s.val();
-  } catch {}
+  try { const s = await get(ref(db, `users/${user.uid}/profile/nickname`)); if (s.exists()) myNick = s.val(); } catch {}
 
   // 모든 예약 읽기
   let data = {};
-  try {
-    const snap = await get(ref(db, `reservations/${currentReserveBooth}`));
-    if (snap.exists()) data = snap.val();
-  } catch {}
+  try { const snap = await get(ref(db, `reservations/${currentReserveBooth}`)); if (snap.exists()) data = snap.val(); } catch {}
 
-  // 표 렌더
+  // 표 렌더 + 내 닉네임 강조
   tbody.innerHTML = "";
   let mySlot = null;
   for (const t of TIMES) {
@@ -262,99 +238,86 @@ async function refreshReserveTable() {
 
     const tdNames = document.createElement("td");
     const users = data[t] ? Object.values(data[t]).map(v => v.nickname) : [];
-    tdNames.textContent = users.length ? users.join(", ") : "-";
+    if (users.length) {
+      users.forEach((nick, i) => {
+        const span = document.createElement("span");
+        span.textContent = nick;
+        if (nick === myNick) { span.style.color = "#317EFB"; span.style.fontWeight = "bold"; }
+        tdNames.appendChild(span);
+        if (i < users.length - 1) tdNames.appendChild(document.createTextNode(", "));
+      });
+    } else {
+      tdNames.textContent = "-";
+    }
     row.appendChild(tdNames);
     tbody.appendChild(row);
 
-    // 내가 예약한 슬롯 찾기
     if (data[t] && data[t][user.uid]) mySlot = t;
   }
 
   // 버튼 상태
   const sel = document.getElementById("reserve-slot");
   const actionBtn = document.getElementById("reserve-action");
+
   if (mySlot) {
     sel.value = mySlot;
     actionBtn.textContent = "예약취소";
     actionBtn.dataset.mode = "cancel";
-    msg.textContent = `현재 ${currentReserveBooth}에 ${mySlot} 예약됨.`;
   } else {
     actionBtn.textContent = "예약";
     actionBtn.dataset.mode = "reserve";
-    msg.textContent = "";
   }
 
-  // 선택된 슬롯이 꽉 찼으면 예약 버튼 비활성화
   const selected = sel.value;
   const count = data[selected] ? Object.keys(data[selected]).length : 0;
   actionBtn.disabled = (actionBtn.dataset.mode === "reserve" && count >= MAX_PER_SLOT);
+
   sel.onchange = () => {
     const c = data[sel.value] ? Object.keys(data[sel.value]).length : 0;
-    if (actionBtn.dataset.mode === "reserve") {
-      actionBtn.disabled = (c >= MAX_PER_SLOT);
-    }
+    if (actionBtn.dataset.mode === "reserve") actionBtn.disabled = (c >= MAX_PER_SLOT);
   };
 }
 
 async function reserveOrCancel() {
-  const user = auth.currentUser;
-  if (!user) return alert("로그인 후 이용하세요.");
-
+  const user = auth.currentUser; if (!user) return alert("로그인 후 이용하세요.");
   // 내 닉네임
   let myNick = user.email;
-  try {
-    const s = await get(ref(db, `users/${user.uid}/profile/nickname`));
-    if (s.exists()) myNick = s.val();
-  } catch {}
+  try { const s = await get(ref(db, `users/${user.uid}/profile/nickname`)); if (s.exists()) myNick = s.val(); } catch {}
 
   const sel = document.getElementById("reserve-slot");
   const slot = sel.value;
   const mode = document.getElementById("reserve-action").dataset.mode;
 
   if (mode === "cancel") {
-    // 내가 예약한 슬롯 찾고 제거
     const all = await get(ref(db, `reservations/${currentReserveBooth}`));
     if (all.exists()) {
       const obj = all.val();
       for (const t of Object.keys(obj)) {
-        if (obj[t][user.uid]) {
-          await remove(ref(db, `reservations/${currentReserveBooth}/${t}/${user.uid}`));
-        }
+        if (obj[t][user.uid]) await remove(ref(db, `reservations/${currentReserveBooth}/${t}/${user.uid}`));
       }
     }
   } else {
-    // 예약 전, 이미 예약이 있으면 모두 삭제(한 사람 1슬롯 정책)
+    // 한 사람 1슬롯 정책: 기존 삭제
     const all = await get(ref(db, `reservations/${currentReserveBooth}`));
     if (all.exists()) {
       const obj = all.val();
       for (const t of Object.keys(obj)) {
-        if (obj[t][user.uid]) {
-          await remove(ref(db, `reservations/${currentReserveBooth}/${t}/${user.uid}`));
-        }
+        if (obj[t][user.uid]) await remove(ref(db, `reservations/${currentReserveBooth}/${t}/${user.uid}`));
       }
     }
     // 용량 확인 후 추가
     const currentSnap = await get(ref(db, `reservations/${currentReserveBooth}/${slot}`));
     const cnt = currentSnap.exists() ? Object.keys(currentSnap.val()).length : 0;
-    if (cnt >= MAX_PER_SLOT) {
-      alert("해당 시간은 이미 정원이 찼습니다.");
-      return;
-    }
-    await set(ref(db, `reservations/${currentReserveBooth}/${slot}/${user.uid}`), {
-      nickname: myNick, ts: Date.now()
-    });
+    if (cnt >= MAX_PER_SLOT) return alert("해당 시간은 이미 정원이 찼습니다.");
+    await set(ref(db, `reservations/${currentReserveBooth}/${slot}/${user.uid}`), { nickname: myNick, ts: Date.now() });
   }
 
   await refreshReserveTable();
 }
 
 /* ===== Staff Only ===== */
-window.openStaffLogin = function() {
-  appSection.style.display = "none"; staffLoginSection.style.display = "block";
-};
-window.closeStaffLogin = function() {
-  staffLoginSection.style.display = "none"; appSection.style.display = "block";
-};
+window.openStaffLogin = function() { appSection.style.display = "none"; staffLoginSection.style.display = "block"; };
+window.closeStaffLogin = function() { staffLoginSection.style.display = "none"; appSection.style.display = "block"; };
 window.checkStaffPassword = async function() {
   const pw = document.getElementById("staff-password").value.trim();
   if (!STAFF_PASSWORDS[pw]) return alert("비밀번호가 올바르지 않습니다.");
@@ -363,21 +326,16 @@ window.checkStaffPassword = async function() {
   document.getElementById("staff-booth-name").textContent = `${boothName} 관리`;
   openStaffTab("stamp");
 
-  // 예약 토글 초기 상태 바인딩
   const toggle = document.getElementById("reserve-toggle");
-  const msg = document.getElementById("reserve-toggle-msg");
   const s = await get(ref(db, `settings/booths/${boothName}/reservationEnabled`));
   toggle.checked = !!(s.exists() && s.val());
-  msg.textContent = toggle.checked ? "현재: 예약 ON" : "현재: 예약 OFF";
+
   toggle.onchange = async () => {
     await set(ref(db, `settings/booths/${boothName}/reservationEnabled`), toggle.checked);
-    msg.textContent = toggle.checked ? "현재: 예약 ON" : "현재: 예약 OFF";
-    await renderBoothList(); // 홈 리스트 갱신
+    await renderBoothList();
   };
 };
-window.closeStaff = function() {
-  staffSection.style.display = "none"; appSection.style.display = "block";
-};
+window.closeStaff = function() { staffSection.style.display = "none"; appSection.style.display = "block"; };
 window.openStaffTab = function(tab) {
   document.getElementById("staff-tab-stamp").style.display   = (tab === "stamp") ? "block" : "none";
   document.getElementById("staff-tab-reserve").style.display = (tab === "reserve") ? "block" : "none";
