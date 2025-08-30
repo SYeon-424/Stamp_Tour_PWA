@@ -14,7 +14,8 @@ const firebaseConfig = {
   projectId: "stamptour-pwa",
   storageBucket: "stamptour-pwa.firebasestorage.app",
   messagingSenderId: "751009851376",
-  appId: "1:751009851376:web:e9280e3a92754de9ed5f35"
+  appId: "1:751009851376:web:e9280e3a92754de9ed5f35",
+  databaseURL: "https://stamptour-pwa-default-rtdb.firebaseio.com"
 };
 
 const app = initializeApp(firebaseConfig);
