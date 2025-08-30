@@ -236,10 +236,14 @@
   <div id="staff-section" class="card" style="display:none;">
     <button class="back-btn" onclick="closeStaff()">«</button>
     <h2 id="staff-booth-name">부스 관리</h2>
+  
+    <hr class="tab-divider">
     <div class="tab-bar">
       <button class="tab-btn active" onclick="openStaffTab('stamp')">도장</button>
       <button class="tab-btn" onclick="openStaffTab('reserve')">예약</button>
     </div>
+    <hr class="tab-divider">
+  
     <div id="staff-tab-stamp" style="display:block;">
       <p>여기 도장 찍기 기능 들어감</p>
     </div>
@@ -247,6 +251,7 @@
       <p>여기 예약 관리 기능 들어감</p>
     </div>
   </div>
+
 
   <script type="module" src="app.js"></script>
   <script>
