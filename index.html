@@ -121,6 +121,20 @@
       color: #ccc;
     }
 
+    #back-btn {
+      position: fixed;       /* 화면에 고정 */
+      top: 10px;             /* 위에서 10px */
+      left: 10px;            /* 왼쪽에서 10px */
+      z-index: 1000;         /* 항상 제일 위 */
+      background: #317EFB;
+      color: #fff;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 18px;
+      font-weight: bold;
+    }
+
     /* === 부스 소개 화면 === */
     #booth-section img {
       max-width: 100%;
@@ -174,8 +188,8 @@
   </div>
 
   <!-- 부스 소개 화면 -->
-  <div id="booth-section" class="card" style="display:none;">
-    <button onclick="closeBooth()" class="ghost">← 뒤로가기</button>
+  <div id="booth-section" class="card" style="display:none; position:relative;">
+    <button id="back-btn" onclick="closeBooth()" class="ghost">«</button>
     <h2 id="booth-name"></h2>
     <img id="booth-img" alt="부스 소개 이미지">
     <p id="booth-desc"></p>
