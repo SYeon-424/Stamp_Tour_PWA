@@ -34,9 +34,27 @@ const STAMP_POS = {
   "셈터":       { x: 300, y: 250 }
 };
 
+/** 🔧 부스 소개 정보 */
+const BOOTH_INFO = {
+  "Static": { img: "./booths/static.png", desc: "Static 부스 소개글입니다." },
+  "인포메티카": { img: "./booths/informatica.png", desc: "인포메티카 부스 소개글입니다." },
+  "배째미": { img: "./booths/bae.png", desc: "배째미 부스 소개글입니다." },
+  "생동감": { img: "./booths/life.png", desc: "생동감 부스 소개글입니다." },
+  "마스터": { img: "./booths/master.png", desc: "마스터 부스 소개글입니다." },
+  "Z-one": { img: "./booths/zone.png", desc: "Z-one 부스 소개글입니다." },
+  "셈터": { img: "./booths/semter.png", desc: "셈터 부스 소개글입니다." },
+  "시그너스": { img: "./booths/cygnus.png", desc: "시그너스 부스 소개글입니다." },
+  "케미어스": { img: "./booths/chemius.png", desc: "케미어스 부스 소개글입니다." },
+  "넛츠": { img: "./booths/nuts.png", desc: "넛츠 부스 소개글입니다." },
+  "스팀": { img: "./booths/steam.png", desc: "스팀 부스 소개글입니다." },
+  "오토메틱": { img: "./booths/automatic.png", desc: "오토메틱 부스 소개글입니다." },
+  "플럭스": { img: "./booths/flux.png", desc: "플럭스 부스 소개글입니다." }
+};
+
 // ===== UI refs =====
 const authSection = document.getElementById("auth-section");
 const appSection  = document.getElementById("app-section");
+const boothSection = document.getElementById("booth-section");
 const signupBtn   = document.getElementById("signup");
 const loginBtn    = document.getElementById("login");
 const logoutBtn   = document.getElementById("logout");
@@ -50,7 +68,6 @@ signupBtn.onclick = async () => {
 
   try {
     const cred = await createUserWithEmailAndPassword(auth, email, password);
-    // 사용자 기본 데이터 초기화
     await set(ref(db, `users/${cred.user.uid}`), {
       profile: { email, createdAt: Date.now() },
       stamps: {}
@@ -79,11 +96,13 @@ onAuthStateChanged(auth, async (user) => {
   if (user) {
     authSection.style.display = "none";
     appSection.style.display  = "block";
+    boothSection.style.display = "none";
     userDisplay.textContent   = user.email || "사용자";
     await loadStamps(user.uid);
   } else {
     authSection.style.display = "block";
     appSection.style.display  = "none";
+    boothSection.style.display = "none";
   }
 });
 
@@ -110,7 +129,7 @@ window.visitBooth = async function(boothName) {
 // 도장판 렌더링
 async function loadStamps(uid) {
   const board = document.getElementById("stampBoard");
-  board.innerHTML = ""; // 배경은 CSS로 넣었으니 초기화만 함
+  board.innerHTML = "";
 
   try {
     const snap = await get(ref(db, `users/${uid}/stamps`));
@@ -137,3 +156,21 @@ async function loadStamps(uid) {
     console.error(e);
   }
 }
+
+// ===== 부스 소개 =====
+window.showBooth = function(name) {
+  const booth = BOOTH_INFO[name];
+  if (!booth) return alert("부스 정보 없음!");
+
+  appSection.style.display = "none";
+  boothSection.style.display = "block";
+
+  document.getElementById("booth-name").textContent = name;
+  document.getElementById("booth-img").src = booth.img;
+  document.getElementById("booth-desc").textContent = booth.desc;
+};
+
+window.closeBooth = function() {
+  boothSection.style.display = "none";
+  appSection.style.display = "block";
+};
