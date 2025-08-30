@@ -251,7 +251,12 @@
     <hr class="tab-divider">
 
     <div id="staff-tab-stamp" style="display:block;">
-      <p>여기 도장 찍기 기능 들어감</p>
+      <div id="staff-tab-stamp" style="display:block;">
+        <input type="text" id="target-nickname" placeholder="닉네임 입력">
+        <button class="primary" onclick="giveStamp()">도장 찍기</button>
+        <p id="stamp-result" style="margin-top:10px; font-size:14px; color:#ccc;"></p>
+      </div>
+
     </div>
     <div id="staff-tab-reserve" style="display:none;">
       <p>여기 예약 관리 기능 들어감</p>
