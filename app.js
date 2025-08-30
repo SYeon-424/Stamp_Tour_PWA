@@ -21,7 +21,7 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db   = getDatabase(app);
 
-/** 스탬프 위치 (예시) */
+// ===== 도장 이미지/위치 (예시 데이터) =====
 const STAMP_IMAGES = {
   "인포메티카": "./stamps/informatica.png",
   "Static": "./stamps/static.png",
@@ -33,7 +33,7 @@ const STAMP_POS = {
   "셈터":       { x: 300, y: 250 }
 };
 
-/** 부스 소개 (샘플) */
+// ===== 부스 소개 데이터 (샘플) =====
 const BOOTH_INFO = {
   "Static": { img: "./booths/static.png", desc: "Static 부스 소개글입니다." },
   "인포메티카": { img: "./booths/informatica.png", desc: "인포메티카 부스 소개글입니다." },
@@ -50,16 +50,14 @@ const BOOTH_INFO = {
   "플럭스": { img: "./booths/flux.png", desc: "플럭스 부스 소개글입니다." }
 };
 
-/** Staff 전용 비밀번호 */
+// ===== Staff 전용 비밀번호 =====
 const STAFF_PASSWORDS = {
-  "pw1": "Static", "pw2": "인포메티카", "pw3": "배째미",
-  "pw4": "생동감", "pw5": "마스터", "pw6": "Z-one",
-  "pw7": "셈터", "pw8": "시그너스", "pw9": "케미어스",
-  "pw10": "넛츠", "pw11": "스팀", "pw12": "오토메틱",
-  "pw13": "플럭스"
+  "pw1": "Static","pw2": "인포메티카","pw3": "배째미","pw4": "생동감","pw5": "마스터",
+  "pw6": "Z-one","pw7": "셈터","pw8": "시그너스","pw9": "케미어스","pw10": "넛츠",
+  "pw11": "스팀","pw12": "오토메틱","pw13": "플럭스"
 };
 
-// ===== UI refs =====
+// ===== UI 참조 =====
 const authSection = document.getElementById("auth-section");
 const appSection  = document.getElementById("app-section");
 const boothSection = document.getElementById("booth-section");
@@ -84,12 +82,14 @@ signupBtn.onclick = async () => {
     alert("회원가입 완료!");
   } catch (e) { alert(e.message); }
 };
+
 loginBtn.onclick = async () => {
   const email = document.getElementById("email").value.trim();
   const password = document.getElementById("password").value;
   try { await signInWithEmailAndPassword(auth, email, password); }
   catch (e) { alert(e.message); }
 };
+
 logoutBtn.onclick = () => signOut(auth).catch(console.error);
 
 onAuthStateChanged(auth, async (user) => {
@@ -110,7 +110,7 @@ onAuthStateChanged(auth, async (user) => {
   }
 });
 
-// ===== 스탬프 =====
+// ===== 도장 찍기 =====
 window.visitBooth = async function(boothName) {
   const user = auth.currentUser;
   if (!user) return alert("로그인 후 이용하세요.");
@@ -120,6 +120,7 @@ window.visitBooth = async function(boothName) {
   });
   await loadStamps(user.uid);
 };
+
 async function loadStamps(uid) {
   const board = document.getElementById("stampBoard");
   board.innerHTML = "";
@@ -149,6 +150,7 @@ window.showBooth = function(name) {
   document.getElementById("booth-img").src = booth.img;
   document.getElementById("booth-desc").textContent = booth.desc;
 };
+
 window.closeBooth = function() {
   boothSection.style.display = "none";
   appSection.style.display = "block";
@@ -159,10 +161,12 @@ window.openStaffLogin = function() {
   appSection.style.display = "none";
   staffLoginSection.style.display = "block";
 };
+
 window.closeStaffLogin = function() {
   staffLoginSection.style.display = "none";
   appSection.style.display = "block";
 };
+
 window.checkStaffPassword = function() {
   const pw = document.getElementById("staff-password").value.trim();
   if (STAFF_PASSWORDS[pw]) {
@@ -175,11 +179,23 @@ window.checkStaffPassword = function() {
     alert("비밀번호가 올바르지 않습니다.");
   }
 };
+
 window.closeStaff = function() {
   staffSection.style.display = "none";
   appSection.style.display = "block";
 };
+
 window.openStaffTab = function(tab) {
+  // 내용 표시/숨기기
   document.getElementById("staff-tab-stamp").style.display = (tab === "stamp") ? "block" : "none";
   document.getElementById("staff-tab-reserve").style.display = (tab === "reserve") ? "block" : "none";
+
+  // 버튼 active 토글
+  const buttons = document.querySelectorAll(".tab-btn");
+  buttons.forEach(btn => btn.classList.remove("active"));
+  if (tab === "stamp") {
+    buttons[0].classList.add("active");
+  } else {
+    buttons[1].classList.add("active");
+  }
 };
