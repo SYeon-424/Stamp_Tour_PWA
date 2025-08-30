@@ -1,3 +1,5 @@
+console.log("app.js loaded");
+
 // Firebase SDK (modular v10)
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
 import {
