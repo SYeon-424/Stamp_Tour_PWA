@@ -1,9 +1,7 @@
 {
   "name": "Stamp Tour PWA",
   "short_name": "StampTour",
-  "id": "/stamp-tour/",
-  "start_url": "/stamp-tour/",
-  "scope": "/stamp-tour/",
+  "start_url": "/stamp-tour/index.html",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#317EFB",
