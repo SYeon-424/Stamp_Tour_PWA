@@ -185,7 +185,7 @@ async function renderBoothList() {
 
     if (enabled) {
       const rBtn = document.createElement("button");
-      rBtn.className = "booth-btn"; rBtn.textContent = "예약";
+      rBtn.className = "booth-btn reserve-btn"; rBtn.textContent = "예약";
       rBtn.onclick = () => openReserve(name);
       row.appendChild(rBtn);
     }
