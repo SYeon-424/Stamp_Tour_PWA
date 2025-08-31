@@ -139,7 +139,7 @@ async function loadStamps(uid) {
     });
   } catch (e) { console.error(e); }
 }
-///////////////////////////////////////////////////////////////////////////////////////////
+
 window.visitBooth = async function(boothName) {
   const user = auth.currentUser; if (!user) return alert("로그인 후 이용하세요.");
   const imgPath = STAMP_IMAGES[boothName] || "./stamp.png";
@@ -148,7 +148,6 @@ window.visitBooth = async function(boothName) {
     await loadStamps(user.uid);
   } catch (e) { alert("도장 찍기 실패: " + e.message); }
 };
-////////////////////////////////////////////////////////////////////////////////////////////
 
 window.showBooth = function(name) {
   const booth = BOOTH_INFO[name]; if (!booth) return;
@@ -423,17 +422,30 @@ window.saveCapacity = async function() {
 };
 
 window.addReserveTime = async function() {
-  const hourStr = document.getElementById("add-hour").value.trim();
-  const hour = Number(hourStr);
-  if (!(hourStr !== "" && Number.isInteger(hour) && hour >= 0 && hour <= 23)) {
-    return alert("0~23 사이의 정수(예: 13)를 입력하세요.");
+  const raw = document.getElementById("add-hour").value.trim();
+
+  // 허용 형식: "H", "HH", "H:MM", "HH:MM"
+  if (!/^\d{1,2}(:\d{2})?$/.test(raw)) {
+    return alert("시간은 HH 또는 HH:MM 형식으로 입력하세요. 예) 9, 09, 13:30, 23:05");
   }
-  const time = `${hour.toString().padStart(2,"0")}:00`;
+
+  let [hStr, mStr = "00"] = raw.split(":");
+  const h = Number(hStr);
+  const m = Number(mStr);
+
+  if (!Number.isInteger(h) || h < 0 || h > 23 || !Number.isInteger(m) || m < 0 || m > 59) {
+    return alert("시간 범위가 올바르지 않습니다.");
+  }
+
+  const time = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+
   const sRef = ref(db, `settings/booths/${currentStaffBooth}`);
   const s = await get(sRef);
   let times = (s.exists() && s.val().times) ? s.val().times : [];
+
   if (!times.includes(time)) times.push(time);
   times.sort();
+
   await update(sRef, { times });
   document.getElementById("add-hour").value = "";
   await loadStaffReserveAdmin();
