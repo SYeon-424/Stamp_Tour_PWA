@@ -1,7 +1,9 @@
 {
-  "name": "스탬프 투어",
-  "short_name": "스탬프",
-  "start_url": "/stamp-tour/index.html",
+  "name": "Stamp Tour PWA",
+  "short_name": "StampTour",
+  "id": "/stamp-tour/",
+  "start_url": "/stamp-tour/",
+  "scope": "/stamp-tour/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#317EFB",
