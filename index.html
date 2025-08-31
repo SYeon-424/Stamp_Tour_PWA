@@ -95,10 +95,18 @@
     .booth-grid {
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 0;
       max-width: 420px;
       margin: 14px auto;
     }
+    .booth-row {
+      display: flex;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid #444;
+    }
+    .booth-row:last-child { border-bottom: none; }
+    .reserve-btn { margin-left: auto; }
 
     .booth-btn {
       background: #2a2a2a;
