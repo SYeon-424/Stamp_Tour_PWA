@@ -261,7 +261,11 @@
 
         <h3 style="margin:6px 0;">예약 시간 관리</h3>
         <div class="row" style="gap:8px; margin-bottom:8px;">
-          <input type="number" id="add-hour" min="0" max="23" step="1" style="min-width:120px;" placeholder="ex) 13:00">
+          <input id="add-hour"
+                 type="text"
+                 inputmode="numeric"
+                 placeholder="예: 13:30"
+                 pattern="\d{1,2}(:\d{2})?">
           <button class="primary" onclick="addReserveTime()">시간 추가</button>
         </div>
         <div class="row" style="gap:8px;">
