@@ -38,7 +38,7 @@
     }
 
     /* 텍스트 입력류 */
-    input[type="text"], input[type="email"], input[type="password"], select {
+    input[type="text"], input[type="email"], input[type="password"], input[type="tel"], select {
       padding: 10px 12px;
       font-size: 16px;
       border: 1px solid #333;
@@ -146,7 +146,7 @@
     .toggle-row { display: inline-flex; align-items: center; gap: 8px; justify-content: center; }
     .toggle-row label { cursor: pointer; }
 
-    /* === 예약 표 === */
+    /* === 표 === */
     table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 14px; }
     th, td { border: 1px solid #444; padding: 6px; }
     th { background: #2a2a2a; }
@@ -162,6 +162,7 @@
     <div class="row" style="margin-bottom:8px;">
       <input type="text" id="nickname" placeholder="닉네임">
       <input type="email" id="email" placeholder="이메일">
+      <input type="tel" id="phone" placeholder="전화번호(숫자만)">
       <input type="password" id="password" placeholder="비밀번호">
     </div>
     <div class="row">
@@ -195,7 +196,7 @@
     <p id="booth-desc"></p>
   </div>
 
-  <!-- 예약 페이지 -->
+  <!-- 예약 (사용자) -->
   <div id="reserve-section" class="card" style="display:none; position:relative;">
     <button class="back-btn" onclick="closeReserve()">«</button>
     <h2 id="reserve-title">예약</h2>
@@ -234,16 +235,52 @@
     </div>
     <hr class="tab-divider">
 
+    <!-- 도장 탭 -->
     <div id="staff-tab-stamp" style="display:block;">
       <input type="text" id="target-nickname" placeholder="닉네임 입력">
       <button class="primary" onclick="giveStamp()">도장 찍기</button>
       <p id="stamp-result" style="margin-top:10px; font-size:14px; color:#ccc;"></p>
     </div>
 
+    <!-- 예약 탭 -->
     <div id="staff-tab-reserve" style="display:none;">
-      <div class="toggle-row">
+      <div class="toggle-row" style="margin-bottom:6px;">
         <label for="reserve-toggle">이 부스 예약 기능 사용</label>
         <input type="checkbox" id="reserve-toggle" />
+      </div>
+
+      <!-- 토글 ON일 때 아래 관리자 UI 표시 -->
+      <div id="staff-reserve-admin" style="display:none; text-align:left; margin-top:8px;">
+        <hr class="tab-divider">
+
+        <!-- 최대 인원 -->
+        <h3 style="margin:6px 0;">시간당 최대 예약인원 수 설정</h3>
+        <div class="row" style="gap:8px; margin-bottom:8px;">
+          <input type="number" id="capacity-input" min="1" step="1" style="min-width:120px;" placeholder="예: 2">
+          <button class="primary" onclick="saveCapacity()">저장</button>
+        </div>
+
+        <hr class="tab-divider">
+
+        <!-- 예약 목록 -->
+        <h3 style="margin:6px 0;">예약목록</h3>
+        <table>
+          <thead><tr><th style="width:100px;">시간</th><th>닉네임</th><th>전화번호</th></tr></thead>
+          <tbody id="staff-reserve-tbody"><tr><td colspan="3">불러오는 중…</td></tr></tbody>
+        </table>
+
+        <hr class="tab-divider">
+
+        <!-- 시간 관리 -->
+        <h3 style="margin:6px 0;">예약시간관리</h3>
+        <div class="row" style="gap:8px; margin-bottom:8px;">
+          <input type="number" id="add-hour" min="0" max="23" step="1" style="min-width:120px;" placeholder="예: 13">
+          <button class="primary" onclick="addReserveTime()">시간 추가</button>
+        </div>
+        <div class="row" style="gap:8px;">
+          <select id="delete-time" style="min-width:160px;"></select>
+          <button class="ghost" onclick="deleteReserveTime()">시간 삭제</button>
+        </div>
       </div>
     </div>
   </div>
