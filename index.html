@@ -158,9 +158,9 @@
   <div id="auth-section" class="card">
     <h2>로그인 / 회원가입</h2>
     <div class="row" style="margin-bottom:8px;">
-      <input type="text" id="nickname" placeholder="닉네임(회원가입할때만 입력)">
+      <input type="text" id="nickname" placeholder="닉네임(최대 8자, 회원가입 전용)" maxlength="8">
       <input type="email" id="email" placeholder="이메일">
-      <input type="tel" id="phone" placeholder="전화번호(숫자만, 회원가입할때만 입력)">
+      <input type="tel" id="phone" placeholder="전화번호(숫자만, 회원가입 전용)">
       <input type="password" id="password" placeholder="비밀번호">
     </div>
     <div class="row">
@@ -264,7 +264,7 @@
           <input id="add-hour"
                  type="text"
                  inputmode="numeric"
-                 placeholder="ex) 13:30"
+                 placeholder="ex) 13 또는 13:30"
                  pattern="\d{1,2}(:\d{2})?">
           <button class="primary" onclick="addReserveTime()">시간 추가</button>
         </div>
