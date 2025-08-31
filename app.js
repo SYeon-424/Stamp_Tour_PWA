@@ -4,7 +4,8 @@ import {
   signOut, onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
 import {
-  getDatabase, ref, set, get, update, query, orderByChild, equalTo, remove
+  getDatabase, ref, set, get, update, query, orderByChild, equalTo, remove,
+  startAt, endAt, limitToFirst
 } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-database.js";
 
 const firebaseConfig = {
@@ -67,12 +68,34 @@ const loginBtn  = document.getElementById("login");
 const logoutBtn = document.getElementById("logout");
 const userDisplay = document.getElementById("user-display");
 
+// ===== UX: 입력 보조 =====
+// 닉네임 길이 하드 제한(복붙/자동완성 대응)
+const nicknameInput = document.getElementById("nickname");
+if (nicknameInput) {
+  nicknameInput.setAttribute("maxlength", "8");
+  nicknameInput.addEventListener("input", (e) => {
+    if (e.target.value.length > 8) e.target.value = e.target.value.slice(0, 8);
+  });
+}
+// 예약시간 입력칸: 숫자/콜론만 허용
+const addHourInput = document.getElementById("add-hour");
+if (addHourInput) {
+  addHourInput.addEventListener("input", (e) => {
+    e.target.value = e.target.value.replace(/[^\d:]/g, "");
+  });
+}
+
 signupBtn.onclick = async () => {
   const nickname = document.getElementById("nickname").value.trim();
   const email = document.getElementById("email").value.trim();
   const phone = (document.getElementById("phone").value || "").replace(/\D/g, "");
   const password = document.getElementById("password").value;
-  if (!nickname || !email || !password || !phone) return alert("닉네임, 이메일, 전화번호, 비밀번호를 모두 입력하세요.");
+  if (!nickname || !email || !password || !phone) {
+    return alert("닉네임, 이메일, 전화번호, 비밀번호를 모두 입력하세요.");
+  }
+  if (nickname.length > 8) {
+    return alert("닉네임은 최대 8글자까지 가능합니다.");
+  }
 
   try {
     const q = query(ref(db, "users"), orderByChild("profile/nickname"), equalTo(nickname));
@@ -140,6 +163,7 @@ async function loadStamps(uid) {
   } catch (e) { console.error(e); }
 }
 
+// 방문 도장(사용자 스스로 버튼/이벤트로 호출할 때)
 window.visitBooth = async function(boothName) {
   const user = auth.currentUser; if (!user) return alert("로그인 후 이용하세요.");
   const imgPath = STAMP_IMAGES[boothName] || "./stamp.png";
@@ -348,6 +372,9 @@ window.checkStaffPassword = async function() {
     await renderBoothList();
     if (toggle.checked) await loadStaffReserveAdmin();
   };
+
+  // 닉네임 자동완성 초기화
+  initNicknameAutocomplete();
 };
 
 window.closeStaff = function() { staffSection.style.display = "none"; appSection.style.display = "block"; };
@@ -444,6 +471,7 @@ window.addReserveTime = async function() {
   let times = (s.exists() && s.val().times) ? s.val().times : [];
 
   if (!times.includes(time)) times.push(time);
+  // "HH:MM" 문자열 정렬만으로 시간순 정렬 OK
   times.sort();
 
   await update(sRef, { times });
@@ -464,3 +492,110 @@ window.deleteReserveTime = async function() {
   await loadStaffReserveAdmin();
   alert(`시간 삭제: ${t}`);
 };
+
+// ===== 닉네임 자동완성(스태프 도장찍기) =====
+function debounce(fn, delay = 250) {
+  let t;
+  return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), delay); };
+}
+
+async function nicknamePrefixSearch(prefix) {
+  const qRef = query(
+    ref(db, "users"),
+    orderByChild("profile/nickname"),
+    startAt(prefix),
+    endAt(prefix + "\uf8ff"),
+    limitToFirst(8)
+  );
+  const snap = await get(qRef);
+  if (!snap.exists()) return [];
+  const raw = snap.val();
+  const results = [];
+  Object.values(raw).forEach(u => {
+    const nick = u?.profile?.nickname;
+    if (nick) results.push(nick);
+  });
+  return [...new Set(results)];
+}
+
+function initNicknameAutocomplete() {
+  const input = document.getElementById("target-nickname");
+  if (!input || input.dataset.autocompleteInit === "1") return;
+
+  // 부모에 position 설정
+  if (getComputedStyle(input.parentElement).position === "static") {
+    input.parentElement.style.position = "relative";
+  }
+
+  // 제안 박스
+  let box = document.getElementById("nick-suggest-box");
+  if (!box) {
+    box = document.createElement("div");
+    box.id = "nick-suggest-box";
+    Object.assign(box.style, {
+      position: "absolute",
+      left: input.offsetLeft + "px",
+      top: (input.offsetTop + input.offsetHeight + 4) + "px",
+      width: input.offsetWidth + "px",
+      maxHeight: "180px",
+      overflowY: "auto",
+      background: "#1e1e1e",
+      border: "1px solid #333",
+      borderRadius: "8px",
+      boxShadow: "0 6px 16px rgba(0,0,0,0.4)",
+      padding: "4px 0",
+      zIndex: 1000,
+      display: "none"
+    });
+    input.parentElement.appendChild(box);
+
+    // 창 리사이즈 시 위치 보정
+    window.addEventListener("resize", () => {
+      box.style.left = input.offsetLeft + "px";
+      box.style.top = (input.offsetTop + input.offsetHeight + 4) + "px";
+      box.style.width = input.offsetWidth + "px";
+    });
+  }
+
+  const render = (list) => {
+    box.innerHTML = "";
+    if (!list.length) { box.style.display = "none"; return; }
+    list.forEach(nick => {
+      const item = document.createElement("div");
+      item.textContent = nick;
+      Object.assign(item.style, {
+        padding: "8px 10px",
+        cursor: "pointer",
+      });
+      item.onmouseenter = () => item.style.background = "#2a2a2a";
+      item.onmouseleave = () => item.style.background = "transparent";
+      item.onclick = () => {
+        input.value = nick;
+        box.style.display = "none";
+      };
+      box.appendChild(item);
+    });
+    box.style.display = "block";
+  };
+
+  const run = debounce(async () => {
+    const v = input.value.trim();
+    if (!v) { box.style.display = "none"; return; }
+    try {
+      const list = await nicknamePrefixSearch(v);
+      render(list);
+    } catch {
+      box.style.display = "none";
+    }
+  }, 200);
+
+  input.addEventListener("input", run);
+  input.addEventListener("focus", run);
+
+  // 바깥 클릭하면 닫기
+  document.addEventListener("click", (e) => {
+    if (e.target !== input && !box.contains(e.target)) box.style.display = "none";
+  });
+
+  input.dataset.autocompleteInit = "1";
+}
