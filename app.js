@@ -66,6 +66,7 @@ const boothSection  = document.getElementById("booth-section");
 const reserveSection= document.getElementById("reserve-section");
 const staffLoginSection = document.getElementById("staff-login-section");
 const staffSection  = document.getElementById("staff-section");
+const settingsSection = document.getElementById("settings-section");
 
 const loginBtn      = document.getElementById("login");
 const goSignupBtn   = document.getElementById("go-signup");
@@ -73,7 +74,12 @@ const signupBtn     = document.getElementById("signup");
 const logoutBtn     = document.getElementById("logout");
 const userDisplay   = document.getElementById("user-display");
 
-// 입력보조: 닉네임 최대 길이(복붙 방지), 예약시간 숫자/콜론만
+const settingsBtn   = document.getElementById("settings-btn");
+const settingsNick  = document.getElementById("settings-nickname");
+const settingsPhone = document.getElementById("settings-phone");
+const settingsMsg   = document.getElementById("settings-msg");
+
+// 입력보조: 닉네임 최대 길이(복붙 방지), 예약시간 숫자/콜론만, 설정 폰 숫자만
 const loginNicknameInput = document.getElementById("login-nickname");
 if (loginNicknameInput) {
   loginNicknameInput.addEventListener("input", (e) => {
@@ -90,6 +96,16 @@ const addHourInput = document.getElementById("add-hour");
 if (addHourInput) {
   addHourInput.addEventListener("input", (e) => {
     e.target.value = e.target.value.replace(/[^\d:]/g, "");
+  });
+}
+if (settingsPhone) {
+  settingsPhone.addEventListener("input", (e) => {
+    e.target.value = e.target.value.replace(/\D/g, "");
+  });
+}
+if (settingsNick) {
+  settingsNick.addEventListener("input", (e) => {
+    if (e.target.value.length > 8) e.target.value = e.target.value.slice(0, 8);
   });
 }
 
@@ -111,7 +127,7 @@ signupBtn.onclick = async () => {
   const password = (document.getElementById("su-password").value || "");
   const phone    = ((document.getElementById("su-phone").value || "")).replace(/\D/g, "");
   const gender   = (document.getElementById("su-gender").value || "").trim();
-  const birth    = (document.getElementById("su-birth").value || "").trim(); // YYYY-MM-DD
+  const birth    = (document.getElementById("su-birth").value || "").trim();
 
   if (!nickname || !email || !password || !phone) {
     return alert("닉네임, 이메일, 비밀번호, 전화번호는 필수입니다.");
@@ -121,21 +137,17 @@ signupBtn.onclick = async () => {
   }
 
   try {
-    // 닉네임 중복확인
     const qDup = query(ref(db, "users"), orderByChild("profile/nickname"), equalTo(nickname));
     const dup = await get(qDup);
     if (dup.exists()) return alert("이미 존재하는 닉네임입니다. 다른 닉네임을 사용해주세요.");
 
-    // Auth 생성
     const cred = await createUserWithEmailAndPassword(auth, email, password);
-    // 프로필 저장
     await set(ref(db, `users/${cred.user.uid}`), {
       profile: { email, nickname, phone, gender, birth, createdAt: Date.now() },
       stamps: {}
     });
 
     alert("회원가입 완료! 로그인 해주세요.");
-    // 가입 후 로그인 화면으로
     signupSection.style.display = "none";
     loginSection.style.display = "block";
   } catch (e) {
@@ -150,7 +162,6 @@ loginBtn.onclick = async () => {
   if (!nickname || !password) return alert("닉네임과 비밀번호를 입력하세요.");
 
   try {
-    // 닉네임 → 이메일 조회
     const qRef = query(ref(db, "users"), orderByChild("profile/nickname"), equalTo(nickname));
     const snap = await get(qRef);
     if (!snap.exists()) return alert("해당 닉네임을 찾을 수 없습니다.");
@@ -178,6 +189,9 @@ onAuthStateChanged(auth, async (user) => {
     reserveSection.style.display= "none";
     staffLoginSection.style.display = "none";
     staffSection.style.display  = "none";
+    settingsSection.style.display = "none";
+
+    settingsBtn.style.display   = "flex"; // ⚙️ 표시
 
     try {
       const nickSnap = await get(ref(db, `users/${user.uid}/profile/nickname`));
@@ -194,6 +208,9 @@ onAuthStateChanged(auth, async (user) => {
     reserveSection.style.display= "none";
     staffLoginSection.style.display = "none";
     staffSection.style.display  = "none";
+    settingsSection.style.display = "none";
+
+    settingsBtn.style.display   = "none"; // ⚙️ 숨김
     userDisplay.textContent     = "";
   }
 });
@@ -524,7 +541,7 @@ window.addReserveTime = async function() {
   let times = (s.exists() && s.val().times) ? s.val().times : [];
 
   if (!times.includes(time)) times.push(time);
-  times.sort(); // "HH:MM" 문자열 정렬로 시간순 정렬
+  times.sort();
 
   await update(sRef, { times });
   document.getElementById("add-hour").value = "";
@@ -634,3 +651,80 @@ function initNicknameAutocomplete() {
 
   input.dataset.autocompleteInit = "1";
 }
+
+// =================== 설정(닉네임/전화번호 변경) ===================
+settingsBtn.onclick = () => openSettings();
+
+window.openSettings = async function() {
+  // 화면 전환
+  loginSection.style.display  = "none";
+  signupSection.style.display = "none";
+  appSection.style.display    = "none";
+  boothSection.style.display  = "none";
+  reserveSection.style.display= "none";
+  staffLoginSection.style.display = "none";
+  staffSection.style.display  = "none";
+  settingsSection.style.display = "block";
+
+  settingsMsg.textContent = "";
+  const user = auth.currentUser;
+  if (!user) { settingsMsg.textContent = "로그인이 필요합니다."; return; }
+
+  try {
+    const profSnap = await get(ref(db, `users/${user.uid}/profile`));
+    if (profSnap.exists()) {
+      const p = profSnap.val();
+      settingsNick.value  = p.nickname || "";
+      settingsPhone.value = (p.phone || "").toString();
+    } else {
+      settingsNick.value  = "";
+      settingsPhone.value = "";
+    }
+  } catch (e) {
+    settingsMsg.textContent = "프로필을 불러오지 못했습니다.";
+  }
+};
+
+window.closeSettings = function() {
+  settingsSection.style.display = "none";
+  appSection.style.display = "block";
+};
+
+window.saveSettings = async function() {
+  const user = auth.currentUser;
+  if (!user) return alert("로그인이 필요합니다.");
+
+  const newNick = (settingsNick.value || "").trim();
+  const newPhone = (settingsPhone.value || "").replace(/\D/g, "");
+
+  if (!newNick) return alert("닉네임을 입력하세요.");
+  if (newNick.length > 8) return alert("닉네임은 최대 8글자입니다.");
+
+  try {
+    // 내 기존 닉네임
+    const curNickSnap = await get(ref(db, `users/${user.uid}/profile/nickname`));
+    const curNick = curNickSnap.exists() ? curNickSnap.val() : null;
+
+    if (newNick !== curNick) {
+      // 중복 닉네임 검사 (다른 UID가 쓰고 있으면 불가)
+      const qDup = query(ref(db, "users"), orderByChild("profile/nickname"), equalTo(newNick));
+      const dup = await get(qDup);
+      if (dup.exists()) {
+        const keys = Object.keys(dup.val());
+        const someoneElse = keys.some(k => k !== user.uid);
+        if (someoneElse) return alert("이미 존재하는 닉네임입니다. 다른 닉네임을 사용해주세요.");
+      }
+    }
+
+    await update(ref(db, `users/${user.uid}/profile`), {
+      nickname: newNick,
+      phone: newPhone
+    });
+
+    userDisplay.textContent = newNick || (user.email || "");
+    settingsMsg.textContent = "✅ 저장되었습니다.";
+    setTimeout(() => { settingsMsg.textContent = ""; }, 1500);
+  } catch (e) {
+    alert("저장 실패: " + e.message);
+  }
+};
