@@ -192,11 +192,11 @@
 <body>
   <h1>DSHS Stamp Tour</h1>
 
-  <!-- 로그인 섹션 (닉네임 + 비밀번호) -->
+  <!-- 로그인 섹션 (닉네임 또는 이메일 + 비밀번호) -->
   <div id="login-section" class="card">
     <h2>로그인</h2>
     <div class="row" style="margin-bottom:8px;">
-      <input type="text" id="login-nickname" placeholder="닉네임" maxlength="8">
+      <input type="text" id="login-nickname" placeholder="닉네임 또는 이메일">
       <input type="password" id="login-password" placeholder="비밀번호">
     </div>
     <div class="row">
@@ -353,16 +353,16 @@
       </label>
     </div>
     <div class="row">
-      <button class="primary" onclick="saveSettings()">저장</button>
+      <button class="primary" onclick="saveSettings()">변경 저장</button>
     </div>
 
     <hr class="tab-divider">
 
     <div style="text-align:left;">
       <h3 style="margin:6px 0;">계정</h3>
-      <p class="danger-text">탈퇴 시 모든 데이터가 삭제되며 되돌릴 수 없습니다.</p>
+      <p class="danger-text">회원탈퇴 시 모든 데이터가 삭제되며 되돌릴 수 없습니다.</p>
       <div class="row">
-        <button class="danger" onclick="deleteAccount()">탈퇴</button>
+        <button class="danger" onclick="deleteAccount()">회원탈퇴</button>
       </div>
     </div>
 
