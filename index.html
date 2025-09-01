@@ -4,7 +4,10 @@
   <meta charset="utf-8">
   <title>STAMP TOUR</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="manifest" href="manifest.json">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <link rel="manifest" href="manifest.json?v=2025-09-01-2">
   <meta name="theme-color" content="#317EFB"/>
   <style>
     :root { color-scheme: dark; }
@@ -78,29 +81,10 @@
       overflow: hidden;
       background: #000;
     }
+    .stampboard img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
 
-    .stampboard img {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      pointer-events: none;
-    }
-
-    .booth-grid {
-      display: flex;
-      flex-direction: column;
-      gap: 0;
-      max-width: 420px;
-      margin: 14px auto;
-    }
-    .booth-row {
-      display: flex;
-      align-items: center;
-      padding: 8px 0;
-      border-bottom: 1px solid #444;
-    }
+    .booth-grid { display: flex; flex-direction: column; gap: 0; max-width: 420px; margin: 14px auto; }
+    .booth-row { display: flex; align-items: center; padding: 8px 0; border-bottom: 1px solid #444; }
     .booth-row:last-child { border-bottom: none; }
     .reserve-btn { margin-left: auto; }
 
@@ -155,35 +139,16 @@
     .field { display: flex; flex-direction: column; align-items: flex-start; }
     .field .label { font-size: 12px; color: #bbb; margin: 0 0 4px 4px; }
 
-    /* 고정 설정 버튼 */
     .settings-btn {
-      position: fixed;
-      top: 14px;
-      right: 14px;
-      z-index: 1200;
-      width: 44px;
-      height: 44px;
-      border-radius: 50%;
-      background: #2a2a2a;
-      border: 1px solid #444;
-      color: #fff;
-      font-size: 22px;
-      display: none; /* 로그인 시에만 노출 */
-      align-items: center;
-      justify-content: center;
+      position: fixed; top: 14px; right: 14px; z-index: 1200;
+      width: 44px; height: 44px; border-radius: 50%;
+      background: #2a2a2a; border: 1px solid #444; color: #fff; font-size: 22px;
+      display: none; align-items: center; justify-content: center;
       box-shadow: 0 4px 12px rgba(0,0,0,0.5);
     }
     .settings-btn:hover { background: #317EFB; }
 
-    /* 링크형 작은 글씨 */
-    .muted-link {
-      color: #9aa0a6;
-      font-size: 13px;
-      margin-top: 6px;
-      cursor: pointer;
-      text-decoration: underline;
-      display: inline-block;
-    }
+    .muted-link { color: #9aa0a6; font-size: 13px; margin-top: 6px; cursor: pointer; text-decoration: underline; display: inline-block; }
     .muted-link:hover { color: #cfd8dc; }
 
     .danger-text { color: #ff8a80; font-size: 13px; }
@@ -192,7 +157,7 @@
 <body>
   <h1>DSHS Stamp Tour</h1>
 
-  <!-- 로그인 섹션 (닉네임 또는 이메일 + 비밀번호) -->
+  <!-- 로그인 -->
   <div id="login-section" class="card">
     <h2>로그인</h2>
     <div class="row" style="margin-bottom:8px;">
@@ -205,7 +170,7 @@
     <p id="go-signup" class="muted-link">회원가입</p>
   </div>
 
-  <!-- 회원가입 섹션 -->
+  <!-- 회원가입 -->
   <div id="signup-section" class="card" style="display:none;">
     <button class="back-btn" onclick="closeSignup()">«</button>
     <h2>회원가입</h2>
@@ -231,6 +196,7 @@
     </div>
   </div>
 
+  <!-- 메인 -->
   <div id="app-section" class="card" style="display:none;">
     <div class="topbar">
       <div class="info" id="user-display"></div>
@@ -247,6 +213,7 @@
     <button class="booth-btn" onclick="openStaffLogin()">Staff Only</button>
   </div>
 
+  <!-- 부스 상세 -->
   <div id="booth-section" class="card" style="display:none; position:relative;">
     <button class="back-btn" onclick="closeBooth()">«</button>
     <h2 id="booth-name"></h2>
@@ -254,23 +221,22 @@
     <p id="booth-desc"></p>
   </div>
 
+  <!-- 예약 -->
   <div id="reserve-section" class="card" style="display:none; position:relative;">
     <button class="back-btn" onclick="closeReserve()">«</button>
     <h2 id="reserve-title">예약</h2>
-
     <table>
       <thead><tr><th style="width:120px;">시간</th><th>닉네임</th></tr></thead>
       <tbody id="reserve-tbody"><tr><td colspan="2">불러오는 중…</td></tr></tbody>
     </table>
-
     <p class="hint">※ 동시간대 최대 <b id="reserve-capacity">2</b>명 예약 가능</p>
-
     <div class="row" style="gap:8px;">
       <select id="reserve-slot"></select>
       <button id="reserve-action" class="primary">예약</button>
     </div>
   </div>
 
+  <!-- 스태프 로그인 -->
   <div id="staff-login-section" class="card" style="display:none;">
     <button class="back-btn" onclick="closeStaffLogin()">«</button>
     <h2>관리자 로그인</h2>
@@ -280,6 +246,7 @@
     </div>
   </div>
 
+  <!-- 스태프 -->
   <div id="staff-section" class="card" style="display:none;">
     <button class="back-btn" onclick="closeStaff()">«</button>
     <h2 id="staff-booth-name"> 관리</h2>
@@ -323,11 +290,7 @@
 
         <h3 style="margin:6px 0;">예약 시간 관리</h3>
         <div class="row" style="gap:8px; margin-bottom:8px;">
-          <input id="add-hour"
-                 type="text"
-                 inputmode="numeric"
-                 placeholder="ex) 13 또는 13:30"
-                 pattern="\d{1,2}(:\d{2})?">
+          <input id="add-hour" type="text" inputmode="numeric" placeholder="ex) 13 또는 13:30" pattern="\d{1,2}(:\d{2})?">
           <button class="primary" onclick="addReserveTime()">시간 추가</button>
         </div>
         <div class="row" style="gap:8px;">
@@ -338,7 +301,7 @@
     </div>
   </div>
 
-  <!-- 설정 섹션 -->
+  <!-- 설정 -->
   <div id="settings-section" class="card" style="display:none; position:relative;">
     <button class="back-btn" onclick="closeSettings()">«</button>
     <h2>설정</h2>
@@ -372,10 +335,11 @@
   <!-- 고정 ⚙️ 버튼 -->
   <button id="settings-btn" class="settings-btn" title="설정" aria-label="설정">⚙️</button>
 
-  <script type="module" src="app.js"></script>
+  <!-- 버전 쿼리로 캐시 무력화 -->
+  <script type="module" src="app.js?v=2025-09-01-2"></script>
   <script>
     if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("./service-worker.js").catch(console.error);
+      navigator.serviceWorker.register("./service-worker.js?v=2025-09-01-2").catch(console.error);
     }
     function closeSignup(){ document.getElementById('signup-section').style.display='none'; document.getElementById('login-section').style.display='block'; }
   </script>
