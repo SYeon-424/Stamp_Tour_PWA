@@ -1,7 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
 import {
   getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
-  signOut, onAuthStateChanged
+  signOut, onAuthStateChanged, deleteUser
 } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
 import {
   getDatabase, ref, set, get, update, query, orderByChild, equalTo, remove,
@@ -698,7 +698,7 @@ async function updateReservationsForUser(uid, fields) {
     try {
       const resSnap = await get(ref(db, `reservations/${booth}`));
       if (!resSnap.exists()) continue;
-      const byTime = resSnap.val(); // { "13:00": { uid: { nickname, phone, ts }, ... }, ... }
+      const byTime = resSnap.val();
       for (const time of Object.keys(byTime)) {
         if (byTime[time] && byTime[time][uid]) {
           tasks.push(update(ref(db, `reservations/${booth}/${time}/${uid}`), fields));
@@ -722,12 +722,10 @@ window.saveSettings = async function() {
   if (newNick.length > 8) return alert("닉네임은 최대 8글자입니다.");
 
   try {
-    // 기존 닉네임
     const curNickSnap = await get(ref(db, `users/${user.uid}/profile/nickname`));
     const curNick = curNickSnap.exists() ? curNickSnap.val() : null;
 
     if (newNick !== curNick) {
-      // 중복 검사
       const qDup = query(ref(db, "users"), orderByChild("profile/nickname"), equalTo(newNick));
       const dup = await get(qDup);
       if (dup.exists()) {
@@ -742,15 +740,12 @@ window.saveSettings = async function() {
       phone: newPhone
     });
 
-    // 예약표에도 반영
     await updateReservationsForUser(user.uid, { nickname: newNick, phone: newPhone });
 
-    // 화면 갱신
     userDisplay.textContent = newNick || (user.email || "");
     settingsMsg.textContent = "✅ 저장되었습니다.";
     setTimeout(() => { settingsMsg.textContent = ""; }, 1500);
 
-    // 표 새로고침
     if (reserveSection.style.display === "block" && currentReserveBooth) {
       await refreshReserveTable();
     }
@@ -759,5 +754,55 @@ window.saveSettings = async function() {
     }
   } catch (e) {
     alert("저장 실패: " + e.message);
+  }
+};
+
+// === 회원탈퇴: 예약/DB 정리 후 인증 계정 삭제 ===
+async function deleteUserReservations(uid) {
+  const booths = Object.keys(BOOTH_INFO);
+  const tasks = [];
+  for (const booth of booths) {
+    try {
+      const resSnap = await get(ref(db, `reservations/${booth}`));
+      if (!resSnap.exists()) continue;
+      const byTime = resSnap.val();
+      for (const time of Object.keys(byTime)) {
+        if (byTime[time] && byTime[time][uid]) {
+          tasks.push(remove(ref(db, `reservations/${booth}/${time}/${uid}`)));
+        }
+      }
+    } catch (e) {
+      console.error("예약 정리 실패:", booth, e);
+    }
+  }
+  await Promise.all(tasks);
+}
+
+window.deleteAccount = async function() {
+  const user = auth.currentUser;
+  if (!user) return alert("로그인이 필요합니다.");
+
+  const ok = confirm("정말로 회원탈퇴 하시겠습니까? 모든 데이터가 삭제되며 되돌릴 수 없습니다.");
+  if (!ok) return;
+
+  try {
+    // 1) 예약 기록 제거
+    await deleteUserReservations(user.uid);
+    // 2) 사용자 데이터 제거
+    await remove(ref(db, `users/${user.uid}`));
+    // 3) 인증 계정 삭제
+    await deleteUser(user);
+
+    alert("계정이 삭제되었습니다.");
+    // onAuthStateChanged가 로그인 화면으로 전환합니다.
+  } catch (e) {
+    console.error(e);
+    if (e.code === "auth/requires-recent-login") {
+      alert("보안을 위해 최근 로그인 후 다시 시도해주세요.");
+      try { await signOut(auth); } catch {}
+      // 세션 종료 → 로그인 화면으로 이동은 onAuthStateChanged에서 처리
+    } else {
+      alert("회원탈퇴 실패: " + e.message);
+    }
   }
 };
