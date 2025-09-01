@@ -110,7 +110,8 @@ if (settingsNick) {
 }
 
 // =================== 화면 전환 ===================
-goSignupBtn.onclick = () => {
+goSignupBtn.onclick = (e) => {
+  e.preventDefault();
   loginSection.style.display = "none";
   signupSection.style.display = "block";
   appSection.style.display = "none";
