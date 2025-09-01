@@ -65,6 +65,7 @@
 
     .primary { background: #317EFB; color: #fff; }
     .ghost { background: transparent; border: 1px solid #317EFB; color: #317EFB; }
+    .danger { background: #b00020; color: #fff; }
 
     .stampboard {
       position: relative;
@@ -185,6 +186,9 @@
       display: inline-block;
     }
     .muted-link:hover { color: #cfd8dc; }
+
+    /* 위험 영역 경고 텍스트 */
+    .danger-text { color: #ff8a80; font-size: 13px; }
   </style>
 </head>
 <body>
@@ -353,6 +357,17 @@
     <div class="row">
       <button class="primary" onclick="saveSettings()">변경 저장</button>
     </div>
+
+    <hr class="tab-divider">
+
+    <div style="text-align:left;">
+      <h3 style="margin:6px 0;">계정</h3>
+      <p class="danger-text">탈퇴 시 모든 데이터가 삭제되며 되돌릴 수 없습니다.</p>
+      <div class="row">
+        <button class="danger" onclick="deleteAccount()">탈퇴</button>
+      </div>
+    </div>
+
     <p id="settings-msg" style="margin-top:10px; font-size:14px; color:#ccc;"></p>
   </div>
 
