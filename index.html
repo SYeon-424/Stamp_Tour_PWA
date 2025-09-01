@@ -174,6 +174,17 @@
       box-shadow: 0 4px 12px rgba(0,0,0,0.5);
     }
     .settings-btn:hover { background: #317EFB; }
+
+    /* 링크형 작은 글씨 */
+    .muted-link {
+      color: #9aa0a6;
+      font-size: 13px;
+      margin-top: 6px;
+      cursor: pointer;
+      text-decoration: underline;
+      display: inline-block;
+    }
+    .muted-link:hover { color: #cfd8dc; }
   </style>
 </head>
 <body>
@@ -188,8 +199,8 @@
     </div>
     <div class="row">
       <button id="login" class="primary">로그인</button>
-      <button id="go-signup" class="ghost">회원가입</button>
     </div>
+    <p id="go-signup" class="muted-link">회원가입</p>
   </div>
 
   <!-- 회원가입 섹션 -->
