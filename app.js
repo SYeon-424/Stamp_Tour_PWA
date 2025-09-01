@@ -79,6 +79,19 @@ const settingsNick  = document.getElementById("settings-nickname");
 const settingsPhone = document.getElementById("settings-phone");
 const settingsMsg   = document.getElementById("settings-msg");
 
+// =================== 유틸: 화면 전환 ===================
+function showLoginOnly() {
+  loginSection.style.display  = "block";
+  signupSection.style.display = "none";
+  appSection.style.display    = "none";
+  boothSection.style.display  = "none";
+  reserveSection.style.display= "none";
+  staffLoginSection.style.display = "none";
+  staffSection.style.display  = "none";
+  settingsSection.style.display = "none";
+  settingsBtn.style.display   = "none"; // ⚙️ 숨김
+}
+
 // 입력보조
 const loginNicknameInput = document.getElementById("login-nickname");
 if (loginNicknameInput) {
@@ -109,7 +122,7 @@ if (settingsNick) {
   });
 }
 
-// =================== 화면 전환 ===================
+// =================== 화면 전환 버튼 ===================
 goSignupBtn.onclick = (e) => {
   e.preventDefault();
   loginSection.style.display = "none";
@@ -149,8 +162,8 @@ signupBtn.onclick = async () => {
     });
 
     alert("회원가입 완료! 로그인 해주세요.");
-    signupSection.style.display = "none";
-    loginSection.style.display = "block";
+    // 회원가입 직후에는 로그인 상태가 아니므로, 어떤 화면도 섞여 보이지 않게 로그인 화면만 표시
+    showLoginOnly();
   } catch (e) {
     alert(e.message);
   }
@@ -202,17 +215,8 @@ onAuthStateChanged(auth, async (user) => {
     await loadStamps(user.uid);
     await renderBoothList();
   } else {
-    loginSection.style.display  = "block";
-    signupSection.style.display = "none";
-    appSection.style.display    = "none";
-    boothSection.style.display  = "none";
-    reserveSection.style.display= "none";
-    staffLoginSection.style.display = "none";
-    staffSection.style.display  = "none";
-    settingsSection.style.display = "none";
-
-    settingsBtn.style.display   = "none"; // ⚙️ 숨김
-    userDisplay.textContent     = "";
+    // 로그아웃/세션 없음 → 로그인 화면만
+    showLoginOnly();
   }
 });
 
@@ -786,21 +790,17 @@ window.deleteAccount = async function() {
   if (!ok) return;
 
   try {
-    // 1) 예약 기록 제거
     await deleteUserReservations(user.uid);
-    // 2) 사용자 데이터 제거
     await remove(ref(db, `users/${user.uid}`));
-    // 3) 인증 계정 삭제
     await deleteUser(user);
 
     alert("계정이 삭제되었습니다.");
-    // onAuthStateChanged가 로그인 화면으로 전환합니다.
+    // onAuthStateChanged에서 로그인 화면으로 자동 전환
   } catch (e) {
     console.error(e);
     if (e.code === "auth/requires-recent-login") {
       alert("보안을 위해 최근 로그인 후 다시 시도해주세요.");
       try { await signOut(auth); } catch {}
-      // 세션 종료 → 로그인 화면으로 이동은 onAuthStateChanged에서 처리
     } else {
       alert("회원탈퇴 실패: " + e.message);
     }
