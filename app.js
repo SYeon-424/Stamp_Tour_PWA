@@ -79,7 +79,7 @@ const settingsNick  = document.getElementById("settings-nickname");
 const settingsPhone = document.getElementById("settings-phone");
 const settingsMsg   = document.getElementById("settings-msg");
 
-// 입력보조: 닉네임 최대 길이(복붙 방지), 예약시간 숫자/콜론만, 설정 폰 숫자만
+// 입력보조
 const loginNicknameInput = document.getElementById("login-nickname");
 if (loginNicknameInput) {
   loginNicknameInput.addEventListener("input", (e) => {
@@ -656,7 +656,6 @@ function initNicknameAutocomplete() {
 settingsBtn.onclick = () => openSettings();
 
 window.openSettings = async function() {
-  // 화면 전환
   loginSection.style.display  = "none";
   signupSection.style.display = "none";
   appSection.style.display    = "none";
@@ -690,6 +689,27 @@ window.closeSettings = function() {
   appSection.style.display = "block";
 };
 
+// === 예약표에 사용자 정보 반영(닉네임/전화) ===
+async function updateReservationsForUser(uid, fields) {
+  const booths = Object.keys(BOOTH_INFO);
+  const tasks = [];
+  for (const booth of booths) {
+    try {
+      const resSnap = await get(ref(db, `reservations/${booth}`));
+      if (!resSnap.exists()) continue;
+      const byTime = resSnap.val(); // { "13:00": { uid: { nickname, phone, ts }, ... }, ... }
+      for (const time of Object.keys(byTime)) {
+        if (byTime[time] && byTime[time][uid]) {
+          tasks.push(update(ref(db, `reservations/${booth}/${time}/${uid}`), fields));
+        }
+      }
+    } catch (e) {
+      console.error("예약표 업데이트 실패:", booth, e);
+    }
+  }
+  await Promise.all(tasks);
+}
+
 window.saveSettings = async function() {
   const user = auth.currentUser;
   if (!user) return alert("로그인이 필요합니다.");
@@ -701,12 +721,12 @@ window.saveSettings = async function() {
   if (newNick.length > 8) return alert("닉네임은 최대 8글자입니다.");
 
   try {
-    // 내 기존 닉네임
+    // 기존 닉네임
     const curNickSnap = await get(ref(db, `users/${user.uid}/profile/nickname`));
     const curNick = curNickSnap.exists() ? curNickSnap.val() : null;
 
     if (newNick !== curNick) {
-      // 중복 닉네임 검사 (다른 UID가 쓰고 있으면 불가)
+      // 중복 검사
       const qDup = query(ref(db, "users"), orderByChild("profile/nickname"), equalTo(newNick));
       const dup = await get(qDup);
       if (dup.exists()) {
@@ -721,9 +741,21 @@ window.saveSettings = async function() {
       phone: newPhone
     });
 
+    // 예약표에도 반영
+    await updateReservationsForUser(user.uid, { nickname: newNick, phone: newPhone });
+
+    // 화면 갱신
     userDisplay.textContent = newNick || (user.email || "");
     settingsMsg.textContent = "✅ 저장되었습니다.";
     setTimeout(() => { settingsMsg.textContent = ""; }, 1500);
+
+    // 표 새로고침
+    if (reserveSection.style.display === "block" && currentReserveBooth) {
+      await refreshReserveTable();
+    }
+    if (staffSection.style.display === "block" && currentStaffBooth) {
+      await loadStaffReserveAdmin();
+    }
   } catch (e) {
     alert("저장 실패: " + e.message);
   }
