@@ -21,6 +21,7 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db   = getDatabase(app);
 
+// =================== 상수/데이터 ===================
 const STAMP_IMAGES = {
   "Static": "./stamps/static.png",
   "인포메티카": "./stamps/informatica.png",
@@ -57,27 +58,34 @@ const STAFF_PASSWORDS = {
   "pw11": "스팀","pw12": "오토메틱","pw13": "플럭스"
 };
 
-const authSection = document.getElementById("auth-section");
-const appSection  = document.getElementById("app-section");
-const boothSection = document.getElementById("booth-section");
-const reserveSection = document.getElementById("reserve-section");
+// =================== DOM 요소 ===================
+const loginSection  = document.getElementById("login-section");
+const signupSection = document.getElementById("signup-section");
+const appSection    = document.getElementById("app-section");
+const boothSection  = document.getElementById("booth-section");
+const reserveSection= document.getElementById("reserve-section");
 const staffLoginSection = document.getElementById("staff-login-section");
-const staffSection = document.getElementById("staff-section");
-const signupBtn = document.getElementById("signup");
-const loginBtn  = document.getElementById("login");
-const logoutBtn = document.getElementById("logout");
-const userDisplay = document.getElementById("user-display");
+const staffSection  = document.getElementById("staff-section");
 
-// ===== UX: 입력 보조 =====
-// 닉네임 길이 하드 제한(복붙/자동완성 대응)
-const nicknameInput = document.getElementById("nickname");
-if (nicknameInput) {
-  nicknameInput.setAttribute("maxlength", "8");
-  nicknameInput.addEventListener("input", (e) => {
+const loginBtn      = document.getElementById("login");
+const goSignupBtn   = document.getElementById("go-signup");
+const signupBtn     = document.getElementById("signup");
+const logoutBtn     = document.getElementById("logout");
+const userDisplay   = document.getElementById("user-display");
+
+// 입력보조: 닉네임 최대 길이(복붙 방지), 예약시간 숫자/콜론만
+const loginNicknameInput = document.getElementById("login-nickname");
+if (loginNicknameInput) {
+  loginNicknameInput.addEventListener("input", (e) => {
     if (e.target.value.length > 8) e.target.value = e.target.value.slice(0, 8);
   });
 }
-// 예약시간 입력칸: 숫자/콜론만 허용
+const suNicknameInput = document.getElementById("su-nickname");
+if (suNicknameInput) {
+  suNicknameInput.addEventListener("input", (e) => {
+    if (e.target.value.length > 8) e.target.value = e.target.value.slice(0, 8);
+  });
+}
 const addHourInput = document.getElementById("add-hour");
 if (addHourInput) {
   addHourInput.addEventListener("input", (e) => {
@@ -85,46 +93,91 @@ if (addHourInput) {
   });
 }
 
+// =================== 화면 전환 ===================
+goSignupBtn.onclick = () => {
+  loginSection.style.display = "none";
+  signupSection.style.display = "block";
+  appSection.style.display = "none";
+};
+window.closeSignup = function() {
+  signupSection.style.display = "none";
+  loginSection.style.display = "block";
+};
+
+// =================== 회원가입 ===================
 signupBtn.onclick = async () => {
-  const nickname = document.getElementById("nickname").value.trim();
-  const email = document.getElementById("email").value.trim();
-  const phone = (document.getElementById("phone").value || "").replace(/\D/g, "");
-  const password = document.getElementById("password").value;
+  const nickname = (document.getElementById("su-nickname").value || "").trim();
+  const email    = (document.getElementById("su-email").value || "").trim();
+  const password = (document.getElementById("su-password").value || "");
+  const phone    = ((document.getElementById("su-phone").value || "")).replace(/\D/g, "");
+  const gender   = (document.getElementById("su-gender").value || "").trim();
+  const birth    = (document.getElementById("su-birth").value || "").trim(); // YYYY-MM-DD
+
   if (!nickname || !email || !password || !phone) {
-    return alert("닉네임, 이메일, 전화번호, 비밀번호를 모두 입력하세요.");
+    return alert("닉네임, 이메일, 비밀번호, 전화번호는 필수입니다.");
   }
   if (nickname.length > 8) {
     return alert("닉네임은 최대 8글자까지 가능합니다.");
   }
 
   try {
-    const q = query(ref(db, "users"), orderByChild("profile/nickname"), equalTo(nickname));
-    const dup = await get(q);
+    // 닉네임 중복확인
+    const qDup = query(ref(db, "users"), orderByChild("profile/nickname"), equalTo(nickname));
+    const dup = await get(qDup);
     if (dup.exists()) return alert("이미 존재하는 닉네임입니다. 다른 닉네임을 사용해주세요.");
 
+    // Auth 생성
     const cred = await createUserWithEmailAndPassword(auth, email, password);
+    // 프로필 저장
     await set(ref(db, `users/${cred.user.uid}`), {
-      profile: { email, nickname, phone, createdAt: Date.now() },
+      profile: { email, nickname, phone, gender, birth, createdAt: Date.now() },
       stamps: {}
     });
-    alert("회원가입 완료!");
-  } catch (e) { alert(e.message); }
+
+    alert("회원가입 완료! 로그인 해주세요.");
+    // 가입 후 로그인 화면으로
+    signupSection.style.display = "none";
+    loginSection.style.display = "block";
+  } catch (e) {
+    alert(e.message);
+  }
 };
+
+// =================== 로그인(닉네임 + 비번) ===================
 loginBtn.onclick = async () => {
-  const email = document.getElementById("email").value.trim();
-  const password = document.getElementById("password").value;
-  try { await signInWithEmailAndPassword(auth, email, password); } catch (e) { alert(e.message); }
+  const nickname = (document.getElementById("login-nickname").value || "").trim();
+  const password = (document.getElementById("login-password").value || "");
+  if (!nickname || !password) return alert("닉네임과 비밀번호를 입력하세요.");
+
+  try {
+    // 닉네임 → 이메일 조회
+    const qRef = query(ref(db, "users"), orderByChild("profile/nickname"), equalTo(nickname));
+    const snap = await get(qRef);
+    if (!snap.exists()) return alert("해당 닉네임을 찾을 수 없습니다.");
+
+    const usersObj = snap.val();
+    const firstUid = Object.keys(usersObj)[0];
+    const email = usersObj[firstUid]?.profile?.email;
+    if (!email) return alert("이 계정에 이메일 정보가 없어 로그인할 수 없습니다.");
+
+    await signInWithEmailAndPassword(auth, email, password);
+  } catch (e) {
+    alert(e.message);
+  }
 };
+
 logoutBtn.onclick = () => signOut(auth).catch(console.error);
 
+// =================== 세션 반영 ===================
 onAuthStateChanged(auth, async (user) => {
   if (user) {
-    authSection.style.display = "none";
-    appSection.style.display  = "block";
-    boothSection.style.display = "none";
-    reserveSection.style.display = "none";
+    loginSection.style.display  = "none";
+    signupSection.style.display = "none";
+    appSection.style.display    = "block";
+    boothSection.style.display  = "none";
+    reserveSection.style.display= "none";
     staffLoginSection.style.display = "none";
-    staffSection.style.display = "none";
+    staffSection.style.display  = "none";
 
     try {
       const nickSnap = await get(ref(db, `users/${user.uid}/profile/nickname`));
@@ -134,16 +187,18 @@ onAuthStateChanged(auth, async (user) => {
     await loadStamps(user.uid);
     await renderBoothList();
   } else {
-    authSection.style.display = "block";
-    appSection.style.display  = "none";
-    boothSection.style.display = "none";
-    reserveSection.style.display = "none";
+    loginSection.style.display  = "block";
+    signupSection.style.display = "none";
+    appSection.style.display    = "none";
+    boothSection.style.display  = "none";
+    reserveSection.style.display= "none";
     staffLoginSection.style.display = "none";
-    staffSection.style.display = "none";
-    userDisplay.textContent = "";
+    staffSection.style.display  = "none";
+    userDisplay.textContent     = "";
   }
 });
 
+// =================== 기능: 도장판 로드 ===================
 async function loadStamps(uid) {
   const board = document.getElementById("stampBoard");
   board.innerHTML = "";
@@ -173,6 +228,7 @@ window.visitBooth = async function(boothName) {
   } catch (e) { alert("도장 찍기 실패: " + e.message); }
 };
 
+// =================== 부스 소개 ===================
 window.showBooth = function(name) {
   const booth = BOOTH_INFO[name]; if (!booth) return;
   appSection.style.display = "none"; boothSection.style.display = "block";
@@ -208,6 +264,7 @@ async function renderBoothList() {
   }
 }
 
+// =================== 예약 ===================
 let currentReserveBooth = null;
 let currentTimes = [];
 let currentCapacity = 2;
@@ -340,6 +397,7 @@ async function reserveOrCancel() {
   await refreshReserveTable();
 }
 
+// =================== 스태프 ===================
 window.openStaffLogin = function() { appSection.style.display = "none"; staffLoginSection.style.display = "block"; };
 window.closeStaffLogin = function() { staffLoginSection.style.display = "none"; appSection.style.display = "block"; };
 
@@ -449,30 +507,24 @@ window.saveCapacity = async function() {
 };
 
 window.addReserveTime = async function() {
-  const raw = document.getElementById("add-hour").value.trim();
-
-  // 허용 형식: "H", "HH", "H:MM", "HH:MM"
+  const raw = (document.getElementById("add-hour").value || "").trim();
   if (!/^\d{1,2}(:\d{2})?$/.test(raw)) {
     return alert("시간은 HH 또는 HH:MM 형식으로 입력하세요. 예) 9, 09, 13:30, 23:05");
   }
 
   let [hStr, mStr = "00"] = raw.split(":");
-  const h = Number(hStr);
-  const m = Number(mStr);
-
+  const h = Number(hStr), m = Number(mStr);
   if (!Number.isInteger(h) || h < 0 || h > 23 || !Number.isInteger(m) || m < 0 || m > 59) {
     return alert("시간 범위가 올바르지 않습니다.");
   }
 
   const time = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
-
   const sRef = ref(db, `settings/booths/${currentStaffBooth}`);
   const s = await get(sRef);
   let times = (s.exists() && s.val().times) ? s.val().times : [];
 
   if (!times.includes(time)) times.push(time);
-  // "HH:MM" 문자열 정렬만으로 시간순 정렬 OK
-  times.sort();
+  times.sort(); // "HH:MM" 문자열 정렬로 시간순 정렬
 
   await update(sRef, { times });
   document.getElementById("add-hour").value = "";
@@ -493,10 +545,9 @@ window.deleteReserveTime = async function() {
   alert(`시간 삭제: ${t}`);
 };
 
-// ===== 닉네임 자동완성(스태프 도장찍기) =====
+// =================== 닉네임 자동완성(스태프 도장찍기) ===================
 function debounce(fn, delay = 250) {
-  let t;
-  return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), delay); };
+  let t; return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), delay); };
 }
 
 async function nicknamePrefixSearch(prefix) {
@@ -509,9 +560,8 @@ async function nicknamePrefixSearch(prefix) {
   );
   const snap = await get(qRef);
   if (!snap.exists()) return [];
-  const raw = snap.val();
   const results = [];
-  Object.values(raw).forEach(u => {
+  Object.values(snap.val()).forEach(u => {
     const nick = u?.profile?.nickname;
     if (nick) results.push(nick);
   });
@@ -522,12 +572,10 @@ function initNicknameAutocomplete() {
   const input = document.getElementById("target-nickname");
   if (!input || input.dataset.autocompleteInit === "1") return;
 
-  // 부모에 position 설정
   if (getComputedStyle(input.parentElement).position === "static") {
     input.parentElement.style.position = "relative";
   }
 
-  // 제안 박스
   let box = document.getElementById("nick-suggest-box");
   if (!box) {
     box = document.createElement("div");
@@ -549,7 +597,6 @@ function initNicknameAutocomplete() {
     });
     input.parentElement.appendChild(box);
 
-    // 창 리사이즈 시 위치 보정
     window.addEventListener("resize", () => {
       box.style.left = input.offsetLeft + "px";
       box.style.top = (input.offsetTop + input.offsetHeight + 4) + "px";
@@ -563,16 +610,10 @@ function initNicknameAutocomplete() {
     list.forEach(nick => {
       const item = document.createElement("div");
       item.textContent = nick;
-      Object.assign(item.style, {
-        padding: "8px 10px",
-        cursor: "pointer",
-      });
+      Object.assign(item.style, { padding: "8px 10px", cursor: "pointer" });
       item.onmouseenter = () => item.style.background = "#2a2a2a";
       item.onmouseleave = () => item.style.background = "transparent";
-      item.onclick = () => {
-        input.value = nick;
-        box.style.display = "none";
-      };
+      item.onclick = () => { input.value = nick; box.style.display = "none"; };
       box.appendChild(item);
     });
     box.style.display = "block";
@@ -581,18 +622,12 @@ function initNicknameAutocomplete() {
   const run = debounce(async () => {
     const v = input.value.trim();
     if (!v) { box.style.display = "none"; return; }
-    try {
-      const list = await nicknamePrefixSearch(v);
-      render(list);
-    } catch {
-      box.style.display = "none";
-    }
+    try { render(await nicknamePrefixSearch(v)); }
+    catch { box.style.display = "none"; }
   }, 200);
 
   input.addEventListener("input", run);
   input.addEventListener("focus", run);
-
-  // 바깥 클릭하면 닫기
   document.addEventListener("click", (e) => {
     if (e.target !== input && !box.contains(e.target)) box.style.display = "none";
   });
