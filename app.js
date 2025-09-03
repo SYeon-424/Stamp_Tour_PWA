@@ -1,4 +1,4 @@
-// v=2025-09-03-2
+// v=2025-09-03-3
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
 import {
   getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
@@ -22,10 +22,8 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db   = getDatabase(app);
 
-// 세션 지속성 (초기 1회 설정)
-(async () => {
-  try { await setPersistence(auth, browserLocalPersistence); } catch(e) { console.warn(e); }
-})();
+// 세션 지속성
+(async () => { try { await setPersistence(auth, browserLocalPersistence); } catch(e) { console.warn(e); } })();
 
 // ===== 데이터 상수 =====
 const STAMP_IMAGES = {
@@ -98,13 +96,11 @@ const fcSave    = document.getElementById("fc-save");
 const fcClose   = document.getElementById("fourcut-close");
 const fcImport  = document.getElementById("fourcut-import");
 const fcFile    = document.getElementById("fc-file");
+const fcCamFile = document.getElementById("fc-cam-file");
 
-const FOURCUT_TEMPLATE = "./templates/fourcut_600x1800.png"; // png로 쓰면 경로만 교체
+const FOURCUT_TEMPLATE = "./templates/fourcut_600x1800.png";
 let _fcTemplateImg = null;
-if (FOURCUT_TEMPLATE) {
-  _fcTemplateImg = new Image();
-  _fcTemplateImg.src = FOURCUT_TEMPLATE;
-}
+if (FOURCUT_TEMPLATE) { _fcTemplateImg = new Image(); _fcTemplateImg.src = FOURCUT_TEMPLATE; }
 
 let _fcStream = null;
 let _fcUseBack = true;
@@ -146,27 +142,19 @@ async function renderLoggedInUI(user) {
 
 // ===== 입력 보조 =====
 const suNicknameInput = document.getElementById("su-nickname");
-if (suNicknameInput) {
-  suNicknameInput.addEventListener("input", (e) => {
-    if (e.target.value.length > 8) e.target.value = e.target.value.slice(0, 8);
-  });
-}
+if (suNicknameInput) suNicknameInput.addEventListener("input", (e) => {
+  if (e.target.value.length > 8) e.target.value = e.target.value.slice(0, 8);
+});
 const addHourInput = document.getElementById("add-hour");
-if (addHourInput) {
-  addHourInput.addEventListener("input", (e) => {
-    e.target.value = e.target.value.replace(/[^\d:]/g, "");
-  });
-}
-if (settingsPhone) {
-  settingsPhone.addEventListener("input", (e) => {
-    e.target.value = e.target.value.replace(/\D/g, "");
-  });
-}
-if (settingsNick) {
-  settingsNick.addEventListener("input", (e) => {
-    if (e.target.value.length > 8) e.target.value = e.target.value.slice(0, 8);
-  });
-}
+if (addHourInput) addHourInput.addEventListener("input", (e) => {
+  e.target.value = e.target.value.replace(/[^\d:]/g, "");
+});
+if (settingsPhone) settingsPhone.addEventListener("input", (e) => {
+  e.target.value = e.target.value.replace(/\D/g, "");
+});
+if (settingsNick) settingsNick.addEventListener("input", (e) => {
+  if (e.target.value.length > 8) e.target.value = e.target.value.slice(0, 8);
+});
 
 // ===== 화면 전환 버튼 =====
 goSignupBtn.onclick = (e) => {
@@ -210,7 +198,7 @@ signupBtn.onclick = async () => {
   }
 };
 
-// ===== 로그인 (즉시 렌더 보장) =====
+// ===== 로그인 =====
 loginBtn.onclick = async () => {
   const id       = (document.getElementById("login-nickname").value || "").trim();
   const password = (document.getElementById("login-password").value || "");
@@ -220,7 +208,6 @@ loginBtn.onclick = async () => {
   try {
     let email = id;
 
-    // 닉네임인 경우 이메일 조회
     if (!id.includes("@")) {
       const qRef = query(ref(db, "users"), orderByChild("profile/nickname"), equalTo(id));
       const snap = await get(qRef);
@@ -277,7 +264,6 @@ async function loadStamps(uid) {
     });
   } catch (e) { console.error(e); }
 
-  // 완료 시 📷 버튼 노출
   try {
     const total = Object.keys(STAMP_IMAGES).length;
     const snap2 = await get(ref(db, `users/${uid}/stamps`));
@@ -574,9 +560,7 @@ window.saveCapacity = async function() {
 
 window.addReserveTime = async function() {
   const raw = (document.getElementById("add-hour").value || "").trim();
-  if (!/^\d{1,2}(:\d{2})?$/.test(raw)) {
-    return alert("시간은 HH 또는 HH:MM 형식으로 입력하세요. 예) 9, 09, 13:30, 23:05");
-  }
+  if (!/^\d{1,2}(:\d{2})?$/.test(raw)) return alert("시간은 HH 또는 HH:MM 형식으로 입력하세요. 예) 9, 09, 13:30, 23:05");
 
   let [hStr, mStr = "00"] = raw.split(":");
   const h = Number(hStr), m = Number(mStr);
@@ -611,12 +595,10 @@ window.deleteReserveTime = async function() {
   alert(`시간 삭제: ${t}`);
 };
 
-// ===== 닉네임 자동완성 (스태프) =====
+// ===== 닉네임 자동완성 =====
 function debounce(fn, delay = 250) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), delay); }; }
-
 async function nicknamePrefixSearch(prefix) {
-  const qRef = query(
-    ref(db, "users"),
+  const qRef = query(ref(db, "users"),
     orderByChild("profile/nickname"),
     startAt(prefix),
     endAt(prefix + "\uf8ff"),
@@ -625,56 +607,32 @@ async function nicknamePrefixSearch(prefix) {
   const snap = await get(qRef);
   if (!snap.exists()) return [];
   const results = [];
-  Object.values(snap.val()).forEach(u => {
-    const nick = u?.profile?.nickname;
-    if (nick) results.push(nick);
-  });
+  Object.values(snap.val()).forEach(u => { const nick = u?.profile?.nickname; if (nick) results.push(nick); });
   return [...new Set(results)];
 }
-
 function initNicknameAutocomplete() {
   const input = document.getElementById("target-nickname");
   if (!input || input.dataset.autocompleteInit === "1") return;
-
-  if (getComputedStyle(input.parentElement).position === "static") {
-    input.parentElement.style.position = "relative";
-  }
-
+  if (getComputedStyle(input.parentElement).position === "static") input.parentElement.style.position = "relative";
   let box = document.getElementById("nick-suggest-box");
   if (!box) {
-    box = document.createElement("div");
-    box.id = "nick-suggest-box";
-    Object.assign(box.style, {
-      position: "absolute",
-      left: input.offsetLeft + "px",
-      top: (input.offsetTop + input.offsetHeight + 4) + "px",
-      width: input.offsetWidth + "px",
-      maxHeight: "180px",
-      overflowY: "auto",
-      background: "#1e1e1e",
-      border: "1px solid #333",
-      borderRadius: "8px",
-      boxShadow: "0 6px 16px rgba(0,0,0,0.4)",
-      padding: "4px 0",
-      zIndex: 1000,
-      display: "none"
-    });
+    box = document.createElement("div"); box.id = "nick-suggest-box";
+    Object.assign(box.style, { position:"absolute", left: input.offsetLeft+"px", top: (input.offsetTop+input.offsetHeight+4)+"px",
+      width: input.offsetWidth+"px", maxHeight:"180px", overflowY:"auto", background:"#1e1e1e", border:"1px solid #333",
+      borderRadius:"8px", boxShadow:"0 6px 16px rgba(0,0,0,0.4)", padding:"4px 0", zIndex:1000, display:"none" });
     input.parentElement.appendChild(box);
-
     window.addEventListener("resize", () => {
       box.style.left = input.offsetLeft + "px";
       box.style.top = (input.offsetTop + input.offsetHeight + 4) + "px";
       box.style.width = input.offsetWidth + "px";
     });
   }
-
   const render = (list) => {
     box.innerHTML = "";
     if (!list.length) { box.style.display = "none"; return; }
     list.forEach(nick => {
-      const item = document.createElement("div");
-      item.textContent = nick;
-      Object.assign(item.style, { padding: "8px 10px", cursor: "pointer" });
+      const item = document.createElement("div"); item.textContent = nick;
+      Object.assign(item.style, { padding:"8px 10px", cursor:"pointer" });
       item.onmouseenter = () => item.style.background = "#2a2a2a";
       item.onmouseleave = () => item.style.background = "transparent";
       item.onclick = () => { input.value = nick; box.style.display = "none"; };
@@ -682,26 +640,18 @@ function initNicknameAutocomplete() {
     });
     box.style.display = "block";
   };
-
   const run = debounce(async () => {
-    const v = input.value.trim();
-    if (!v) { box.style.display = "none"; return; }
-    try { render(await nicknamePrefixSearch(v)); }
-    catch { box.style.display = "none"; }
+    const v = input.value.trim(); if (!v) { box.style.display = "none"; return; }
+    try { render(await nicknamePrefixSearch(v)); } catch { box.style.display = "none"; }
   }, 200);
-
   input.addEventListener("input", run);
   input.addEventListener("focus", run);
-  document.addEventListener("click", (e) => {
-    if (e.target !== input && !box.contains(e.target)) box.style.display = "none";
-  });
-
+  document.addEventListener("click", (e) => { if (e.target !== input && !box.contains(e.target)) box.style.display = "none"; });
   input.dataset.autocompleteInit = "1";
 }
 
-// ===== 설정(닉네임/전화번호 변경 + 예약표 반영) =====
+// ===== 설정 =====
 settingsBtn.onclick = () => openSettings();
-
 window.openSettings = async function() {
   loginSection.style.display  = "none";
   signupSection.style.display = "none";
@@ -726,15 +676,11 @@ window.openSettings = async function() {
       settingsNick.value  = "";
       settingsPhone.value = "";
     }
-  } catch (e) {
+  } catch {
     settingsMsg.textContent = "프로필을 불러오지 못했습니다.";
   }
 };
-
-window.closeSettings = function() {
-  settingsSection.style.display = "none";
-  appSection.style.display = "block";
-};
+window.closeSettings = function() { settingsSection.style.display = "none"; appSection.style.display = "block"; };
 
 async function updateReservationsForUser(uid, fields) {
   const booths = Object.keys(BOOTH_INFO);
@@ -744,32 +690,21 @@ async function updateReservationsForUser(uid, fields) {
       const resSnap = await get(ref(db, `reservations/${booth}`));
       if (!resSnap.exists()) continue;
       const byTime = resSnap.val();
-      for (const time of Object.keys(byTime)) {
-        if (byTime[time] && byTime[time][uid]) {
-          tasks.push(update(ref(db, `reservations/${booth}/${time}/${uid}`), fields));
-        }
-      }
-    } catch (e) {
-      console.error("예약표 업데이트 실패:", booth, e);
-    }
+      for (const time of Object.keys(byTime)) if (byTime[time] && byTime[time][uid]) tasks.push(update(ref(db, `reservations/${booth}/${time}/${uid}`), fields));
+    } catch (e) { console.error("예약표 업데이트 실패:", booth, e); }
   }
   await Promise.all(tasks);
 }
-
 window.saveSettings = async function() {
   const user = auth.currentUser;
   if (!user) return alert("로그인이 필요합니다.");
-
   const newNick = (settingsNick.value || "").trim();
   const newPhone = (settingsPhone.value || "").replace(/\D/g, "");
-
   if (!newNick) return alert("닉네임을 입력하세요.");
   if (newNick.length > 8) return alert("닉네임은 최대 8글자입니다.");
-
   try {
     const curNickSnap = await get(ref(db, `users/${user.uid}/profile/nickname`));
     const curNick = curNickSnap.exists() ? curNickSnap.val() : null;
-
     if (newNick !== curNick) {
       const qDup = query(ref(db, "users"), orderByChild("profile/nickname"), equalTo(newNick));
       const dup = await get(qDup);
@@ -779,23 +714,14 @@ window.saveSettings = async function() {
         if (someoneElse) return alert("이미 존재하는 닉네임입니다. 다른 닉네임을 사용해주세요.");
       }
     }
-
-    await update(ref(db, `users/${user.uid}/profile`), {
-      nickname: newNick,
-      phone: newPhone
-    });
-
+    await update(ref(db, `users/${user.uid}/profile`), { nickname: newNick, phone: newPhone });
     await updateReservationsForUser(user.uid, { nickname: newNick, phone: newPhone });
-
     userDisplay.textContent = newNick || (user.email || "");
     settingsMsg.textContent = "✅ 저장되었습니다.";
     setTimeout(() => { settingsMsg.textContent = ""; }, 1500);
-
     if (reserveSection.style.display === "block" && currentReserveBooth) await refreshReserveTable();
     if (staffSection.style.display === "block" && currentStaffBooth) await loadStaffReserveAdmin();
-  } catch (e) {
-    alert("저장 실패: " + e.message);
-  }
+  } catch (e) { alert("저장 실패: " + e.message); }
 };
 
 // 회원탈퇴
@@ -807,25 +733,16 @@ async function deleteUserReservations(uid) {
       const resSnap = await get(ref(db, `reservations/${booth}`));
       if (!resSnap.exists()) continue;
       const byTime = resSnap.val();
-      for (const time of Object.keys(byTime)) {
-        if (byTime[time] && byTime[time][uid]) {
-          tasks.push(remove(ref(db, `reservations/${booth}/${time}/${uid}`)));
-        }
-      }
-    } catch (e) {
-      console.error("예약 정리 실패:", booth, e);
-    }
+      for (const time of Object.keys(byTime)) if (byTime[time] && byTime[time][uid]) tasks.push(remove(ref(db, `reservations/${booth}/${time}/${uid}`)));
+    } catch (e) { console.error("예약 정리 실패:", booth, e); }
   }
   await Promise.all(tasks);
 }
-
 window.deleteAccount = async function() {
   const user = auth.currentUser;
   if (!user) return alert("로그인이 필요합니다.");
-
   const ok = confirm("정말로 회원탈퇴 하시겠습니까? 모든 데이터가 삭제되며 되돌릴 수 없습니다.");
   if (!ok) return;
-
   try {
     await deleteUserReservations(user.uid);
     await remove(ref(db, `users/${user.uid}`));
@@ -886,13 +803,37 @@ fcImport?.addEventListener("click", ()=>{
 
 fcFlip?.addEventListener("click", async ()=>{ _fcUseBack=!_fcUseBack; stopFcCamera(); await startFcCamera(); });
 
-fcShot?.addEventListener("click", ()=>{
+// 촬영 버튼: 카메라가 없으면 파일 촬영으로 폴백
+fcShot?.addEventListener("click", async ()=>{
   const idx = parseInt(fcSel.value,10);
-  if (!_fcStream || !fcVideo.videoWidth) return;
-  const c = document.createElement("canvas");
-  c.width = fcVideo.videoWidth; c.height = fcVideo.videoHeight;
-  c.getContext("2d").drawImage(fcVideo, 0,0,c.width,c.height);
-  loadIntoSlot(idx, c.toDataURL("image/jpeg", .92), true);
+  const shotWithStream = () => {
+    const c = document.createElement("canvas");
+    c.width = fcVideo.videoWidth; c.height = fcVideo.videoHeight;
+    c.getContext("2d").drawImage(fcVideo, 0,0,c.width,c.height);
+    loadIntoSlot(idx, c.toDataURL("image/jpeg", .92), true);
+  };
+
+  try {
+    if (_fcStream && fcVideo.videoWidth) {
+      shotWithStream();
+    } else {
+      // 폴백: 파일 촬영(일부 브라우저/기기에서 카메라 앱 실행)
+      await new Promise((res) => {
+        fcCamFile.onchange = (e)=>{
+          const f = e.target.files?.[0];
+          if (!f) return res();
+          const r = new FileReader();
+          r.onload = ()=> { loadIntoSlot(idx, r.result, true); res(); };
+          r.readAsDataURL(f);
+          fcCamFile.value="";
+        };
+        fcCamFile.click();
+      });
+    }
+  } catch (e) {
+    console.warn(e);
+    alert("촬영에 실패했습니다. 권한을 허용했는지 확인해주세요.");
+  }
   updateSaveEnabled();
 });
 
@@ -916,15 +857,12 @@ function applyTransform(idx){
   imgEl.style.transform = `translate(${st.ox}px, ${st.oy}px) scale(${st.sx})`;
 }
 
-// ===== 제스처(드래그/핀치) — 전역 리스너 제거, 슬롯별 Pointer Events 사용 =====
+// ===== 제스처 — 슬롯별 Pointer Events (슬롯0은 잠금) =====
 fcSlots.forEach((slotEl)=>{
   const idx = parseInt(slotEl.dataset.index,10);
+  if (idx === 0) return; // 도장판 잠금
 
-  // 슬롯0(도장판)은 잠금
-  if (idx === 0) return;
-
-  // 두 손가락 핀치를 위한 포인터 집합
-  const pointers = new Map(); // id -> {x,y}
+  const pointers = new Map();
   let baseS=1, baseOX=0, baseOY=0, startX=0, startY=0, baseDist=0;
 
   const clamp = (x,a,b)=> Math.max(a, Math.min(b,x));
@@ -934,19 +872,12 @@ fcSlots.forEach((slotEl)=>{
     if(!_fcStates[idx].img) return;
     pointers.set(e.pointerId, {x:e.clientX, y:e.clientY});
     try { slotEl.setPointerCapture(e.pointerId); } catch {}
-    // 첫 손가락: 드래그 기준 저장
     if (pointers.size === 1) {
-      baseS = _fcStates[idx].sx;
-      baseOX = _fcStates[idx].ox;
-      baseOY = _fcStates[idx].oy;
-      startX = e.clientX;
-      startY = e.clientY;
+      baseS = _fcStates[idx].sx; baseOX = _fcStates[idx].ox; baseOY = _fcStates[idx].oy;
+      startX = e.clientX; startY = e.clientY;
     }
-    // 두 번째 손가락 들어오면 핀치 기준 거리 저장
     if (pointers.size === 2) {
-      const arr = [...pointers.values()];
-      baseDist = dist(arr[0], arr[1]);
-      baseS = _fcStates[idx].sx;
+      const arr = [...pointers.values()]; baseDist = dist(arr[0], arr[1]); baseS = _fcStates[idx].sx;
     }
     e.preventDefault();
   };
@@ -957,24 +888,18 @@ fcSlots.forEach((slotEl)=>{
     pointers.set(e.pointerId, {x:e.clientX, y:e.clientY});
 
     if (pointers.size >= 2) {
-      // 핀치 확대
       const arr = [...pointers.values()];
       const d = dist(arr[0], arr[1]);
-      if (baseDist > 0) {
-        st.sx = clamp(baseS * (d / baseDist), 0.2, 4);
-        applyTransform(idx);
-      }
+      if (baseDist > 0) { st.sx = clamp(baseS * (d / baseDist), 0.2, 4); applyTransform(idx); }
       e.preventDefault();
       return;
     }
 
-    // 한 손가락 드래그
     const dx = e.clientX - startX;
     const dy = e.clientY - startY;
-    st.ox = baseOX + dx;
-    st.oy = baseOY + dy;
+    st.ox = baseOX + dx; st.oy = baseOY + dy;
     applyTransform(idx);
-    e.preventDefault(); // 드래그 중에만 스크롤 방지
+    e.preventDefault();
   };
 
   const onUp = (e)=>{
@@ -995,15 +920,12 @@ function updateSaveEnabled(){
 
 fcSave?.addEventListener("click", ()=>{
   const W = fcStage.clientWidth, H = fcStage.clientHeight;        // 300×900
-  const c = document.createElement("canvas"); c.width = W*2; c.height = H*2; // 600×1800 고해상도 출력
+  const c = document.createElement("canvas"); c.width = W*2; c.height = H*2; // 600×1800
   const ctx = c.getContext("2d"); ctx.scale(2,2);
 
-  // 템플릿 먼저 (있으면)
-  if (_fcTemplateImg && _fcTemplateImg.complete) {
-    ctx.drawImage(_fcTemplateImg, 0, 0, W, H);
-  } else {
-    ctx.fillStyle="#101010"; roundRect(ctx,0,0,W,H,20); ctx.fill();
-  }
+  // 템플릿 먼저
+  if (_fcTemplateImg && _fcTemplateImg.complete) ctx.drawImage(_fcTemplateImg, 0, 0, W, H);
+  else { ctx.fillStyle="#101010"; roundRect(ctx,0,0,W,H,20); ctx.fill(); }
 
   // 슬롯 그리기
   fcSlots.forEach((slotEl, idx)=>{
@@ -1036,7 +958,7 @@ function roundRect(ctx,x,y,w,h,r){
 // 도장판을 캔버스로 합성해서 dataURL 반환
 async function renderStampBoardToDataURL(){
   const board = document.getElementById("stampBoard");
-  const imgs = [...board.querySelectorAll("img")]; // [배경, stamp..., ...]
+  const imgs = [...board.querySelectorAll("img")];
   if (!imgs.length) return undefined;
 
   const W = board.clientWidth || 600;
