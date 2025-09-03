@@ -7,7 +7,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
-  <link rel="manifest" href="manifest.json?v=2025-09-03-2">
+  <link rel="manifest" href="manifest.json?v=2025-09-03-3">
   <meta name="theme-color" content="#317EFB"/>
   <style>
     :root { color-scheme: dark; }
@@ -145,6 +145,12 @@
     .muted-link:hover { color: #cfd8dc; }
 
     .danger-text { color: #ff8a80; font-size: 13px; }
+
+    /* 네컷 레이아웃 반응형 */
+    #fourcut-layout { display:grid; grid-template-columns: 1fr 320px; gap:12px; padding:12px; }
+    @media (max-width: 720px){
+      #fourcut-layout { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body>
@@ -342,16 +348,17 @@
           <button id="fourcut-close" style="padding:8px 12px; border-radius:10px; border:1px solid #333; background:#1c1c1c; color:#eee;">닫기</button>
         </div>
       </div>
-      <div style="display:grid; grid-template-columns: 1fr 320px; gap:12px; padding:12px;">
+
+      <div id="fourcut-layout">
         <div style="display:grid; place-items:center;">
           <div id="fourcut-stage"
                style="position:relative; width:300px; height:900px; background:#111; border-radius:20px; box-shadow:0 6px 24px rgba(0,0,0,.5) inset, 0 8px 28px rgba(0,0,0,.6); border:1px solid #2a2a2a;">
 
             <!-- 템플릿 미리보기 -->
-            <img id="fc-template" src="./templates/fourcut_600x1800.png?v=2025-09-03-2"
+            <img id="fc-template" src="./templates/fourcut_600x1800.png?v=2025-09-03-3"
                  alt="" style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover; pointer-events:none; opacity:.9;" />
 
-            <!-- 3:2 슬롯. 미리보기 기준(300×900): 좌우 12, 위/아래 28, 간격 36 -->
+            <!-- 3:2 슬롯: 300×900 기준 레이아웃 -->
             <div class="fc-slot" data-index="0"
                  style="position:absolute; left:12px; right:12px; top:28px;  height:184px; border:1px dashed #3a3a3a; border-radius:12px; background:#0b0b0b; overflow:hidden;">
               <span style="position:absolute; right:6px; bottom:6px; font-size:12px; background:rgba(0,0,0,.5); border:1px solid #333; padding:2px 6px; border-radius:8px;">도장판</span>
@@ -377,36 +384,51 @@
             </div>
           </div>
         </div>
-        <div style="display:flex; flex-direction:column; gap:12px;">
-          <div style="border:1px solid #242424; border-radius:12px; padding:10px; background:#121212;">
-            <div style="position:relative; border-radius:12px; overflow:hidden; background:#000; height:220px; display:grid; place-items:center;">
-              <video id="fc-video" playsinline muted style="width:100%; height:100%; object-fit:cover;"></video>
+
+        <!-- 우측 컨트롤 (모바일에서는 아래로 내려감) -->
+        <div style="display:flex; flex-direction:column; gap:12px; padding:0 12px;">
+          <div style="border:1px solid #242424; border-radius:12px; padding:10px; background:#121212; text-align:left;">
+            <div class="row" style="justify-content:space-between; gap:8px;">
+              <label style="display:flex; align-items:center; gap:8px;">
+                <span>대상 칸</span>
+                <select id="fc-sel" style="padding:8px 10px; border-radius:10px; border:1px solid #333; background:#1c1c1c; color:#eee;">
+                  <option value="1">사진 1</option>
+                  <option value="2">사진 2</option>
+                  <option value="3">사진 3</option>
+                </select>
+              </label>
             </div>
-            <div style="display:flex; gap:8px; justify-content:space-between; margin-top:8px;">
-              <select id="fc-sel" style="padding:8px 10px; border-radius:10px; border:1px solid #333; background:#1c1c1c; color:#eee;">
-                <option value="1">사진 1</option><option value="2">사진 2</option><option value="3">사진 3</option>
-              </select>
-              <button id="fc-flip" style="padding:8px 12px; border-radius:10px; border:1px solid #333; background:#1c1c1c; color:#eee;">전/후면</button>
-              <button id="fc-shot" style="padding:8px 12px; border-radius:10px; border:1px solid #333; background:#1c1c1c; color:#eee;">촬영</button>
+
+            <div class="row" style="margin-top:10px; gap:8px;">
+              <button id="fc-shot" class="primary">촬영</button>
+              <button id="fc-gallery" class="ghost">앨범에서 선택</button>
             </div>
+
+            <p style="font-size:12px; color:#aaa; margin-top:8px;">
+              ※ iOS/안드로이드에서는 ‘촬영’ 버튼이 기본 카메라를 엽니다. 일부 기기에서는 촬영/앨범 선택창이 뜰 수 있어요.
+            </p>
           </div>
+
           <div style="border:1px solid #242424; border-radius:12px; padding:10px; background:#121212; display:flex; justify-content:space-between; align-items:center;">
             <span style="font-size:14px; color:#ccc;">4칸 채우면 저장 가능</span>
             <button id="fc-save" disabled style="padding:8px 12px; border-radius:10px; border:1px solid #333; background:#1c1c1c; color:#eee;">네컷 저장</button>
           </div>
-          <small style="opacity:.7;">두 손가락으로 사진 이동/확대 가능 (iOS는 HTTPS + 카메라 권한 필요)</small>
+          <small style="opacity:.7;">사진(1~3)은 손가락으로 이동/확대 가능. 도장판(맨 위 칸)은 잠겨 있어요.</small>
         </div>
       </div>
     </div>
   </div>
 
-  <input id="fc-file" type="file" accept="image/*" capture="environment" style="display:none;" />
+  <!-- 숨겨진 파일 입력들 -->
+  <input id="fc-file" type="file" accept="image/*" style="display:none;" />            <!-- 도장판 이미지 수동 넣기 -->
+  <input id="fc-file-cam" type="file" accept="image/*" capture="environment" style="display:none;" /> <!-- 카메라 촬영 -->
+  <input id="fc-file-gallery" type="file" accept="image/*" style="display:none;" />   <!-- 앨범 선택 -->
 
   <!-- 버전 쿼리로 캐시 무력화 -->
-  <script type="module" src="app.js?v=2025-09-03-2"></script>
+  <script type="module" src="app.js?v=2025-09-03-3"></script>
   <script>
     if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("./service-worker.js?v=2025-09-03-2").catch(console.error);
+      navigator.serviceWorker.register("./service-worker.js?v=2025-09-03-3").catch(console.error);
     }
     function closeSignup(){ document.getElementById('signup-section').style.display='none'; document.getElementById('login-section').style.display='block'; }
   </script>
