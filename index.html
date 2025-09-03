@@ -7,10 +7,16 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
-  <link rel="manifest" href="manifest.json?v=2025-09-03-3">
+  <link rel="manifest" href="manifest.json?v=2025-09-03-2">
   <meta name="theme-color" content="#317EFB"/>
   <style>
-    :root { color-scheme: dark; }
+    :root {
+      color-scheme: dark;
+      --stageW: 300px;            /* 기본 미리보기 폭 */
+    }
+    @media (max-width: 720px) {
+      :root { --stageW: 86vw; }   /* 모바일에선 폭을 화면에 맞춰 키움 */
+    }
 
     body {
       font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
@@ -145,6 +151,49 @@
     .muted-link:hover { color: #cfd8dc; }
 
     .danger-text { color: #ff8a80; font-size: 13px; }
+
+    /* ===== 네컷 레이아웃 ===== */
+    .fc-grid {
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      gap: 12px;
+      padding: 12px;
+    }
+    @media (max-width: 900px) {
+      .fc-grid { grid-template-columns: 1fr; }
+    }
+    #fourcut-stage {
+      position: relative;
+      width: var(--stageW);
+      height: calc(var(--stageW) * 3); /* 300×900 비율 유지 */
+      background:#111;
+      border-radius:20px;
+      box-shadow:0 6px 24px rgba(0,0,0,.5) inset, 0 8px 28px rgba(0,0,0,.6);
+      border:1px solid #2a2a2a;
+      margin: 0 auto;
+      overflow: hidden;
+    }
+    #fc-template {
+      position:absolute; inset:0; width:100%; height:100%;
+      object-fit:cover; pointer-events:none; opacity:.9;
+    }
+    .fc-slot {
+      position:absolute; left:4%; right:4%;
+      height:20.444%; /* 184 / 900 */
+      border:1px dashed #3a3a3a; border-radius:12px; background:#0b0b0b; overflow:hidden;
+    }
+    .fc-slot[data-index="0"] { top:3.111%; }  /* 28 / 900 */
+    .fc-slot[data-index="1"] { top:27.556%; } /* 248 / 900 */
+    .fc-slot[data-index="2"] { top:52.000%; } /* 468 / 900 */
+    .fc-slot[data-index="3"] { top:76.444%; } /* 688 / 900 */
+
+    .fc-slot .badge {
+      position:absolute; right:6px; bottom:6px; font-size:12px; background:rgba(0,0,0,.5);
+      border:1px solid #333; padding:2px 6px; border-radius:8px;
+    }
+    .fc-img { position:absolute; top:0; left:0; transform-origin:0 0; touch-action:none; }
+
+    .hide { display:none !important; }
   </style>
 </head>
 <body>
@@ -294,76 +343,36 @@
     </div>
   </div>
 
-  <!-- 네컷 모달 + 파일 입력 -->
-  <div id="fourcut-overlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:2000; align-items:center; justify-content:center;">
-    <div style="width:min(94vw,980px); max-height:94vh; background:#121212; border:1px solid #2a2a2a; border-radius:16px; overflow:hidden; display:flex; flex-direction:column;">
-      <div style="display:flex; align-items:center; justify-content:space-between; padding:12px 14px; border-bottom:1px solid #242424;">
-        <strong>네컷 사진 만들기</strong>
-        <div style="display:flex; gap:8px;">
-          <button id="fourcut-import" style="padding:8px 12px; border-radius:10px; border:1px solid #333; background:#1c1c1c; color:#eee;">도장판 다시 넣기</button>
-          <button id="fourcut-close" style="padding:8px 12px; border-radius:10px; border:1px solid #333; background:#1c1c1c; color:#eee;">닫기</button>
-        </div>
-      </div>
-      <div style="display:grid; grid-template-columns: 1fr 320px; gap:12px; padding:12px;">
-        <div style="display:grid; place-items:center;">
-          <div id="fourcut-stage"
-               style="position:relative; width:300px; height:900px; background:#111; border-radius:20px; box-shadow:0 6px 24px rgba(0,0,0,.5) inset, 0 8px 28px rgba(0,0,0,.6); border:1px solid #2a2a2a;">
+  <!-- 설정 -->
+  <div id="settings-section" class="card" style="display:none; position:relative;">
+    <button class="back-btn" onclick="closeSettings()">«</button>
+    <h2>설정</h2>
+    <div class="row" style="gap:8px; margin-bottom:8px;">
+      <label class="field">
+        <span class="label">닉네임 (최대 8자)</span>
+        <input type="text" id="settings-nickname" maxlength="8" placeholder="닉네임">
+      </label>
+      <label class="field">
+        <span class="label">전화번호</span>
+        <input type="tel" id="settings-phone" placeholder="숫자만">
+      </label>
+    </div>
+    <div class="row">
+      <button class="primary" onclick="saveSettings()">변경 저장</button>
+    </div>
 
-            <!-- 템플릿 미리보기 -->
-            <img id="fc-template" src="./templates/fourcut_600x1800.png?v=2025-09-03-3"
-                 alt="" style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover; pointer-events:none; opacity:.9;" />
+    <hr class="tab-divider">
 
-            <!-- 3:2 슬롯 (도장판 + 3장). 미리보기 기준(300×900): 좌우 12, 위/아래 28, 간격 36 -->
-            <div class="fc-slot" data-index="0"
-                 style="position:absolute; left:12px; right:12px; top:28px;  height:184px; border:1px dashed #3a3a3a; border-radius:12px; background:#0b0b0b; overflow:hidden; pointer-events:none;">
-              <span style="position:absolute; right:6px; bottom:6px; font-size:12px; background:rgba(0,0,0,.5); border:1px solid #333; padding:2px 6px; border-radius:8px;">도장판</span>
-              <img class="fc-img" alt="" style="position:absolute; top:0; left:0; transform-origin:0 0; touch-action:none;" />
-            </div>
-
-            <div class="fc-slot" data-index="1"
-                 style="position:absolute; left:12px; right:12px; top:248px; height:184px; border:1px dashed #3a3a3a; border-radius:12px; background:#0b0b0b; overflow:hidden;">
-              <span style="position:absolute; right:6px; bottom:6px; font-size:12px; background:rgba(0,0,0,.5); border:1px solid #333; padding:2px 6px; border-radius:8px;">사진 1</span>
-              <img class="fc-img" alt="" style="position:absolute; top:0; left:0; transform-origin:0 0; touch-action:none;" />
-            </div>
-
-            <div class="fc-slot" data-index="2"
-                 style="position:absolute; left:12px; right:12px; top:468px; height:184px; border:1px dashed #3a3a3a; border-radius:12px; background:#0b0b0b; overflow:hidden;">
-              <span style="position:absolute; right:6px; bottom:6px; font-size:12px; background:rgba(0,0,0,.5); border:1px solid #333; padding:2px 6px; border-radius:8px;">사진 2</span>
-              <img class="fc-img" alt="" style="position:absolute; top:0; left:0; transform-origin:0 0; touch-action:none;" />
-            </div>
-
-            <div class="fc-slot" data-index="3"
-                 style="position:absolute; left:12px; right:12px; top:688px; height:184px; border:1px dashed #3a3a3a; border-radius:12px; background:#0b0b0b; overflow:hidden;">
-              <span style="position:absolute; right:6px; bottom:6px; font-size:12px; background:rgba(0,0,0,.5); border:1px solid #333; padding:2px 6px; border-radius:8px;">사진 3</span>
-              <img class="fc-img" alt="" style="position:absolute; top:0; left:0; transform-origin:0 0; touch-action:none;" />
-            </div>
-          </div>
-        </div>
-
-        <!-- 우측 컨트롤: 카메라 없이 촬영/앨범 -->
-        <div style="display:flex; flex-direction:column; gap:12px;">
-          <div style="border:1px solid #242424; border-radius:12px; padding:10px; background:#121212;">
-            <div class="row" style="gap:8px; justify-content:space-between;">
-              <select id="fc-sel" style="padding:8px 10px; border-radius:10px; border:1px solid #333; background:#1c1c1c; color:#eee;">
-                <option value="1">사진 1</option><option value="2">사진 2</option><option value="3">사진 3</option>
-              </select>
-              <button id="fc-flip" style="padding:8px 12px; border-radius:10px; border:1px solid #333; background:#1c1c1c; color:#eee;">전/후면</button>
-              <button id="fc-shot" style="padding:8px 12px; border-radius:10px; border:1px solid #333; background:#1c1c1c; color:#eee;">촬영</button>
-              <button id="fc-gallery" style="padding:8px 12px; border-radius:10px; border:1px solid #333; background:#1c1c1c; color:#eee;">앨범</button>
-            </div>
-          </div>
-          <div style="border:1px solid #242424; border-radius:12px; padding:10px; background:#121212; display:flex; justify-content:space-between; align-items:center;">
-            <span style="font-size:14px; color:#ccc;">4칸 채우면 저장 가능</span>
-            <button id="fc-save" disabled style="padding:8px 12px; border-radius:10px; border:1px solid #333; background:#1c1c1c; color:#eee;">네컷 저장</button>
-          </div>
-          <small style="opacity:.7;">촬영은 폰 기본 카메라가 열립니다. (iOS도 OK)</small>
-        </div>
+    <div style="text-align:left;">
+      <h3 style="margin:6px 0;">계정</h3>
+      <p class="danger-text">회원탈퇴 시 모든 데이터가 삭제되며 되돌릴 수 없습니다.</p>
+      <div class="row">
+        <button class="danger" onclick="deleteAccount()">회원탈퇴</button>
       </div>
     </div>
-  </div>
 
-  <!-- 숨김 파일 입력(촬영/앨범 공용) -->
-  <input id="fc-file" type="file" accept="image/*" style="display:none;" />
+    <p id="settings-msg" style="margin-top:10px; font-size:14px; color:#ccc;"></p>
+  </div>
 
   <!-- 고정 ⚙️ 버튼 -->
   <button id="settings-btn" class="settings-btn" title="설정" aria-label="설정">⚙️</button>
@@ -372,11 +381,97 @@
   <button id="cameraFab" title="네컷 만들기" aria-label="네컷 만들기"
     style="display:none; position:fixed; right:14px; bottom:14px; z-index:1200; width:54px; height:54px; border-radius:50%; border:1px solid #444; background:#2a2a2a; color:#fff; box-shadow:0 8px 24px rgba(0,0,0,.4); font-size:22px;">📷</button>
 
+  <!-- 네컷 모달 + 파일 입력 -->
+  <div id="fourcut-overlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:2000; align-items:center; justify-content:center;">
+    <div style="width:min(94vw,980px); max-height:94vh; background:#121212; border:1px solid #2a2a2a; border-radius:16px; overflow:hidden; display:flex; flex-direction:column;">
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:12px 14px; border-bottom:1px solid #242424;">
+        <strong>네컷 사진 만들기</strong>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <div style="display:flex; gap:10px; font-size:13px; color:#ccc;">
+            <label><input type="radio" name="fc-mode" value="live" id="fc-mode-live"> 라이브 프리뷰</label>
+            <label><input type="radio" name="fc-mode" value="camera" id="fc-mode-camera"> 기본 카메라</label>
+          </div>
+          <button id="fourcut-import" style="padding:8px 12px; border-radius:10px; border:1px solid #333; background:#1c1c1c; color:#eee;">도장판 이미지 넣기</button>
+          <button id="fourcut-close" style="padding:8px 12px; border-radius:10px; border:1px solid #333; background:#1c1c1c; color:#eee;">닫기</button>
+        </div>
+      </div>
+
+      <div class="fc-grid">
+        <!-- 스테이지 -->
+        <div style="display:grid; place-items:center;">
+          <div id="fourcut-stage">
+            <!-- 템플릿 미리보기 -->
+            <img id="fc-template" src="./templates/fourcut_600x1800.png" alt="">
+
+            <!-- 3:2 슬롯 (슬롯0=도장판: 잠금) -->
+            <div class="fc-slot" data-index="0" style="pointer-events:none;">
+              <span class="badge">도장판</span>
+              <img class="fc-img" alt="">
+            </div>
+            <div class="fc-slot" data-index="1">
+              <span class="badge">사진 1</span>
+              <img class="fc-img" alt="">
+            </div>
+            <div class="fc-slot" data-index="2">
+              <span class="badge">사진 2</span>
+              <img class="fc-img" alt="">
+            </div>
+            <div class="fc-slot" data-index="3">
+              <span class="badge">사진 3</span>
+              <img class="fc-img" alt="">
+            </div>
+          </div>
+        </div>
+
+        <!-- 캡처 패널 -->
+        <div style="display:flex; flex-direction:column; gap:12px;">
+          <!-- 라이브 프리뷰 컨테이너 -->
+          <div id="fc-live-panel" style="border:1px solid #242424; border-radius:12px; padding:10px; background:#121212;">
+            <div style="position:relative; border-radius:12px; overflow:hidden; background:#000; height:220px; display:grid; place-items:center;">
+              <video id="fc-video" playsinline muted style="width:100%; height:100%; object-fit:cover;"></video>
+            </div>
+            <div style="display:flex; gap:8px; justify-content:space-between; margin-top:8px;">
+              <select id="fc-sel" style="padding:8px 10px; border-radius:10px; border:1px solid #333; background:#1c1c1c; color:#eee;">
+                <option value="1">사진 1</option><option value="2">사진 2</option><option value="3">사진 3</option>
+              </select>
+              <button id="fc-flip" style="padding:8px 12px; border-radius:10px; border:1px solid #333; background:#1c1c1c; color:#eee;">전/후면</button>
+              <button id="fc-shot" style="padding:8px 12px; border-radius:10px; border:1px solid #333; background:#1c1c1c; color:#eee;">촬영(프리뷰)</button>
+            </div>
+          </div>
+
+          <!-- 기본 카메라(앱) 패널 -->
+          <div id="fc-camera-panel" class="hide" style="border:1px solid #242424; border-radius:12px; padding:10px; background:#121212;">
+            <div class="row" style="justify-content:space-between;">
+              <select id="fc-sel-cam" style="padding:8px 10px; border-radius:10px; border:1px solid #333; background:#1c1c1c; color:#eee;">
+                <option value="1">사진 1</option><option value="2">사진 2</option><option value="3">사진 3</option>
+              </select>
+              <select id="fc-face" style="padding:8px 10px; border-radius:10px; border:1px solid #333; background:#1c1c1c; color:#eee;">
+                <option value="environment">후면</option>
+                <option value="user">전면</option>
+              </select>
+              <button id="fc-open" style="padding:8px 12px; border-radius:10px; border:1px solid #333; background:#1c1c1c; color:#eee;">카메라 열기</button>
+            </div>
+            <small style="opacity:.8;">iOS는 HTTPS + 카메라 권한 필요. 촬영 후 이 화면으로 돌아오면 자동으로 슬롯에 들어갑니다.</small>
+          </div>
+
+          <!-- 저장 -->
+          <div style="border:1px solid #242424; border-radius:12px; padding:10px; background:#121212; display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:14px; color:#ccc;">4칸 채우면 저장 가능 (슬롯0은 자동/고정)</span>
+            <button id="fc-save" disabled style="padding:8px 12px; border-radius:10px; border:1px solid #333; background:#1c1c1c; color:#eee;">네컷 저장</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 입력들 -->
+  <input id="fc-file" type="file" accept="image/*" capture="environment" style="display:none;" />
+
   <!-- 버전 쿼리로 캐시 무력화 -->
-  <script type="module" src="app.js?v=2025-09-03-3"></script>
+  <script type="module" src="app.js?v=2025-09-03-2"></script>
   <script>
     if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("./service-worker.js?v=2025-09-03-3").catch(console.error);
+      navigator.serviceWorker.register("./service-worker.js?v=2025-09-03-2").catch(console.error);
     }
     function closeSignup(){ document.getElementById('signup-section').style.display='none'; document.getElementById('login-section').style.display='block'; }
   </script>
