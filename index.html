@@ -335,6 +335,66 @@
   <!-- 고정 ⚙️ 버튼 -->
   <button id="settings-btn" class="settings-btn" title="설정" aria-label="설정">⚙️</button>
 
+  <!-- 📷 플로팅 버튼 -->
+  <button id="cameraFab" title="네컷 만들기" aria-label="네컷 만들기"
+    style="display:none; position:fixed; right:14px; bottom:14px; z-index:1200; width:54px; height:54px; border-radius:50%; border:1px solid #444; background:#2a2a2a; color:#fff; box-shadow:0 8px 24px rgba(0,0,0,.4); font-size:22px;">📷</button>
+
+  <!-- 네컷 모달 + 파일 입력 -->
+  <div id="fourcut-overlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:2000; align-items:center; justify-content:center;">
+    <div style="width:min(94vw,980px); max-height:94vh; background:#121212; border:1px solid #2a2a2a; border-radius:16px; overflow:hidden; display:flex; flex-direction:column;">
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:12px 14px; border-bottom:1px solid #242424;">
+        <strong>네컷 사진 만들기</strong>
+        <div style="display:flex; gap:8px;">
+          <button id="fourcut-import" style="padding:8px 12px; border-radius:10px; border:1px solid #333; background:#1c1c1c; color:#eee;">도장판 이미지 넣기</button>
+          <button id="fourcut-close" style="padding:8px 12px; border-radius:10px; border:1px solid #333; background:#1c1c1c; color:#eee;">닫기</button>
+        </div>
+      </div>
+      <div style="display:grid; grid-template-columns: 1fr 320px; gap:12px; padding:12px;">
+        <div style="display:grid; place-items:center;">
+          <div id="fourcut-stage" style="position:relative; width:360px; height:640px; background:#111; border-radius:20px; box-shadow:0 6px 24px rgba(0,0,0,.5) inset, 0 8px 28px rgba(0,0,0,.6); border:1px solid #2a2a2a;">
+            <div class="fc-slot" data-index="0" style="position:absolute; left:24px; right:24px; top:18px; height:132px; border:1px dashed #3a3a3a; border-radius:12px; background:#0b0b0b; overflow:hidden;">
+              <span style="position:absolute; right:6px; bottom:6px; font-size:12px; background:rgba(0,0,0,.5); border:1px solid #333; padding:2px 6px; border-radius:8px;">도장판</span>
+              <img class="fc-img" alt="" style="position:absolute; top:0; left:0; transform-origin:0 0; touch-action:none;" />
+            </div>
+            <div class="fc-slot" data-index="1" style="position:absolute; left:24px; right:24px; top:174px; height:132px; border:1px dashed #3a3a3a; border-radius:12px; background:#0b0b0b; overflow:hidden;">
+              <span style="position:absolute; right:6px; bottom:6px; font-size:12px; background:rgba(0,0,0,.5); border:1px solid #333; padding:2px 6px; border-radius:8px;">사진 1</span>
+              <img class="fc-img" alt="" style="position:absolute; top:0; left:0; transform-origin:0 0; touch-action:none;" />
+            </div>
+            <div class="fc-slot" data-index="2" style="position:absolute; left:24px; right:24px; top:330px; height:132px; border:1px dashed #3a3a3a; border-radius:12px; background:#0b0b0b; overflow:hidden;">
+              <span style="position:absolute; right:6px; bottom:6px; font-size:12px; background:rgba(0,0,0,.5); border:1px solid #333; padding:2px 6px; border-radius:8px;">사진 2</span>
+              <img class="fc-img" alt="" style="position:absolute; top:0; left:0; transform-origin:0 0; touch-action:none;" />
+            </div>
+            <div class="fc-slot" data-index="3" style="position:absolute; left:24px; right:24px; top:486px; height:132px; border:1px dashed #3a3a3a; border-radius:12px; background:#0b0b0b; overflow:hidden;">
+              <span style="position:absolute; right:6px; bottom:6px; font-size:12px; background:rgba(0,0,0,.5); border:1px solid #333; padding:2px 6px; border-radius:8px;">사진 3</span>
+              <img class="fc-img" alt="" style="position:absolute; top:0; left:0; transform-origin:0 0; touch-action:none;" />
+            </div>
+          </div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:12px;">
+          <div style="border:1px solid #242424; border-radius:12px; padding:10px; background:#121212;">
+            <div style="position:relative; border-radius:12px; overflow:hidden; background:#000; height:220px; display:grid; place-items:center;">
+              <video id="fc-video" playsinline muted style="width:100%; height:100%; object-fit:cover;"></video>
+            </div>
+            <div style="display:flex; gap:8px; justify-content:space-between; margin-top:8px;">
+              <select id="fc-sel" style="padding:8px 10px; border-radius:10px; border:1px solid #333; background:#1c1c1c; color:#eee;">
+                <option value="1">사진 1</option><option value="2">사진 2</option><option value="3">사진 3</option>
+              </select>
+              <button id="fc-flip" style="padding:8px 12px; border-radius:10px; border:1px solid #333; background:#1c1c1c; color:#eee;">전/후면</button>
+              <button id="fc-shot" style="padding:8px 12px; border-radius:10px; border:1px solid #333; background:#1c1c1c; color:#eee;">촬영</button>
+            </div>
+          </div>
+          <div style="border:1px solid #242424; border-radius:12px; padding:10px; background:#121212; display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:14px; color:#ccc;">4칸 채우면 저장 가능</span>
+            <button id="fc-save" disabled style="padding:8px 12px; border-radius:10px; border:1px solid #333; background:#1c1c1c; color:#eee;">네컷 저장</button>
+          </div>
+          <small style="opacity:.7;">두 손가락으로 사진 이동/확대 가능</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <input id="fc-file" type="file" accept="image/*" capture="environment" style="display:none;" />
+
   <!-- 버전 쿼리로 캐시 무력화 -->
   <script type="module" src="app.js?v=2025-09-01-2"></script>
   <script>
