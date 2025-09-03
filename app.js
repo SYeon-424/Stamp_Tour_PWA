@@ -99,7 +99,7 @@ const fcClose   = document.getElementById("fourcut-close");
 const fcImport  = document.getElementById("fourcut-import");
 const fcFile    = document.getElementById("fc-file");
 
-const FOURCUT_TEMPLATE = "./templates/fourcut_600x1800.svg"; // png로 쓰면 경로만 교체
+const FOURCUT_TEMPLATE = "./templates/fourcut_600x1800.png"; // png로 쓰면 경로만 교체
 let _fcTemplateImg = null;
 if (FOURCUT_TEMPLATE) {
   _fcTemplateImg = new Image();
