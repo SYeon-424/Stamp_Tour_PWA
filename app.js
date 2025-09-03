@@ -85,6 +85,26 @@ const settingsNick  = document.getElementById("settings-nickname");
 const settingsPhone = document.getElementById("settings-phone");
 const settingsMsg   = document.getElementById("settings-msg");
 
+// ===== FourCut 전역 =====
+const cameraFab = document.getElementById("cameraFab");
+const fcOverlay = document.getElementById("fourcut-overlay");
+const fcStage   = document.getElementById("fourcut-stage");
+const fcSlots   = fcStage ? [...fcStage.querySelectorAll(".fc-slot")] : [];
+const fcVideo   = document.getElementById("fc-video");
+const fcShot    = document.getElementById("fc-shot");
+const fcFlip    = document.getElementById("fc-flip");
+const fcSel     = document.getElementById("fc-sel");
+const fcSave    = document.getElementById("fc-save");
+const fcClose   = document.getElementById("fourcut-close");
+const fcImport  = document.getElementById("fourcut-import");
+const fcFile    = document.getElementById("fc-file");
+
+let _fcStream = null;
+let _fcUseBack = true;
+const _fcStates = [0,1,2,3].map(() => ({ img:null, w:0, h:0, sx:1, ox:0, oy:0 })); // sx: scale, o*: offset
+
+function toggleCameraFab(show){ if (cameraFab) cameraFab.style.display = show ? "block" : "none"; }
+
 // ===== 화면 전환 =====
 function showLoginOnly() {
   loginSection.style.display  = "block";
@@ -214,7 +234,6 @@ loginBtn.onclick = async () => {
     if (auth.currentUser) {
       await renderLoggedInUI(auth.currentUser);
     } else {
-      // 혹시 모를 레이스컨디션 대비: 다음 틱에서 한 번 더 시도
       setTimeout(() => auth.currentUser && renderLoggedInUI(auth.currentUser), 0);
     }
   } catch (e) {
@@ -243,7 +262,13 @@ async function loadStamps(uid) {
   board.appendChild(bg);
   try {
     const snap = await get(ref(db, `users/${uid}/stamps`));
-    if (!snap.exists()) return;
+    if (!snap.exists()) {
+      // 완료 여부 체크
+      try {
+        toggleCameraFab(false);
+      } catch {}
+      return;
+    }
     const stamps = snap.val();
     Object.keys(stamps).forEach((booth) => {
       const data = stamps[booth]; if (!data?.stamped) return;
@@ -253,6 +278,14 @@ async function loadStamps(uid) {
       board.appendChild(layer);
     });
   } catch (e) { console.error(e); }
+
+  // --- 모든 스탬프 완료 시 카메라 버튼 노출 ---
+  try {
+    const total = Object.keys(STAMP_IMAGES).length;
+    const snap2 = await get(ref(db, `users/${uid}/stamps`));
+    const count = snap2.exists() ? Object.values(snap2.val()).filter(v => v?.stamped).length : 0;
+    toggleCameraFab(count >= total);
+  } catch {}
 }
 
 window.visitBooth = async function(boothName) {
@@ -810,3 +843,157 @@ window.deleteAccount = async function() {
     }
   }
 };
+
+// ======================= FourCut 본체 =======================
+
+// 플로팅 버튼: 클릭 → 도장판 캡쳐 후 모달 열기
+cameraFab?.addEventListener("click", async () => {
+  const dataURL = await renderStampBoardToDataURL();
+  openFourCut(dataURL);
+});
+
+// 모달 열기/닫기 & 카메라
+async function startFcCamera(){
+  try {
+    if (_fcStream) return;
+    _fcStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: _fcUseBack ? "environment" : "user" }, audio:false });
+    fcVideo.srcObject = _fcStream; await fcVideo.play();
+  } catch(e){ console.warn("camera error", e); }
+}
+function stopFcCamera(){
+  if (!_fcStream) return; _fcStream.getTracks().forEach(t=>t.stop()); _fcStream=null; fcVideo.srcObject=null;
+}
+
+function openFourCut(stampDataURL){
+  fcOverlay.style.display = "flex";
+  if (stampDataURL) loadIntoSlot(0, stampDataURL, true);
+  startFcCamera();
+  updateSaveEnabled();
+}
+fcClose?.addEventListener("click", ()=>{ fcOverlay.style.display="none"; stopFcCamera(); });
+
+fcImport?.addEventListener("click", ()=>{
+  fcFile.onchange = (e)=>{
+    const f = e.target.files?.[0]; if(!f) return;
+    const r = new FileReader();
+    r.onload = ()=> loadIntoSlot(0, r.result, true);
+    r.readAsDataURL(f);
+    fcFile.value="";
+  };
+  fcFile.click();
+});
+
+fcFlip?.addEventListener("click", async ()=>{ _fcUseBack=!_fcUseBack; stopFcCamera(); await startFcCamera(); });
+
+fcShot?.addEventListener("click", ()=>{
+  const idx = parseInt(fcSel.value,10);
+  if (!_fcStream || !fcVideo.videoWidth) return;
+  const c = document.createElement("canvas");
+  c.width = fcVideo.videoWidth; c.height = fcVideo.videoHeight;
+  c.getContext("2d").drawImage(fcVideo, 0,0,c.width,c.height);
+  loadIntoSlot(idx, c.toDataURL("image/jpeg", .92), true);
+  updateSaveEnabled();
+});
+
+function loadIntoSlot(idx, dataURL, center=false){
+  const slotEl = fcSlots[idx]; const imgEl = slotEl.querySelector(".fc-img");
+  const img = new Image(); img.onload = ()=>{
+    _fcStates[idx].img = img; _fcStates[idx].w = img.width; _fcStates[idx].h = img.height;
+    const slotW = slotEl.clientWidth, slotH = slotEl.clientHeight;
+    const s = slotW / img.width; _fcStates[idx].sx = s;
+    _fcStates[idx].ox = 0; _fcStates[idx].oy = center ? (slotH - img.height*s)/2 : 0;
+    applyTransform(idx);
+  };
+  img.src = dataURL; imgEl.src = dataURL;
+}
+
+function applyTransform(idx){
+  const slotEl = fcSlots[idx]; const imgEl = slotEl.querySelector(".fc-img");
+  const st = _fcStates[idx]; if (!st.img) { imgEl.style.transform="none"; return; }
+  imgEl.style.width = st.w + "px"; imgEl.style.height = st.h + "px";
+  imgEl.style.transform = `translate(${st.ox}px, ${st.oy}px) scale(${st.sx})`;
+}
+
+// 제스처(드래그/핀치)
+fcSlots.forEach((slotEl)=>{
+  const idx = parseInt(slotEl.dataset.index,10);
+  let active=false, startX=0, startY=0, baseOX=0, baseOY=0, pinch=false, baseDist=0, baseS=1;
+
+  const getPts = (e)=>{
+    const pts=[]; if (e.touches) for(let i=0;i<e.touches.length;i++) pts.push({x:e.touches[i].clientX,y:e.touches[i].clientY});
+    else pts.push({x:e.clientX,y:e.clientY}); return pts;
+  };
+  const onDown = (e)=>{ if(!_fcStates[idx].img) return; active=true; pinch=false; baseS=_fcStates[idx].sx; baseOX=_fcStates[idx].ox; baseOY=_fcStates[idx].oy;
+    const pts=getPts(e); if(pts.length>=2){ pinch=true; baseDist=dist(pts[0],pts[1]); } else { startX=pts[0].x; startY=pts[0].y; } };
+  const onMove = (e)=>{ if(!active) return; e.preventDefault();
+    const pts=getPts(e);
+    if(pinch && pts.length>=2){ const d=dist(pts[0],pts[1]); _fcStates[idx].sx = clamp(baseS*(d/baseDist), 0.2, 4); }
+    else { const dx=pts[0].x-startX, dy=pts[0].y-startY; _fcStates[idx].ox = baseOX+dx; _fcStates[idx].oy = baseOY+dy; }
+    applyTransform(idx);
+  };
+  const onUp = ()=>{ active=false; pinch=false; };
+
+  slotEl.addEventListener("pointerdown", onDown);
+  window.addEventListener("pointermove", onMove); window.addEventListener("pointerup", onUp);
+  slotEl.addEventListener("touchstart", onDown, {passive:false});
+  slotEl.addEventListener("touchmove", onMove, {passive:false});
+  slotEl.addEventListener("touchend", onUp);
+});
+function dist(a,b){ return Math.hypot(a.x-b.x, a.y-b.y); }
+function clamp(x,a,b){ return Math.max(a, Math.min(b,x)); }
+
+function updateSaveEnabled(){
+  const ok = !!(_fcStates[0].img && _fcStates[1].img && _fcStates[2].img && _fcStates[3].img);
+  fcSave.disabled = !ok;
+}
+
+fcSave?.addEventListener("click", ()=>{
+  const W = fcStage.clientWidth, H = fcStage.clientHeight;
+  const c = document.createElement("canvas"); c.width = W*2; c.height = H*2;
+  const ctx = c.getContext("2d"); ctx.scale(2,2);
+  // 배경
+  ctx.fillStyle="#101010"; roundRect(ctx,0,0,W,H,20); ctx.fill();
+
+  // 슬롯들 복원
+  fcSlots.forEach((slotEl, idx)=>{
+    const r = slotEl.getBoundingClientRect();
+    const sR = fcStage.getBoundingClientRect();
+    const x = r.left - sR.left, y = r.top - sR.top, w = r.width, h = r.height;
+
+    ctx.save(); roundRect(ctx,x,y,w,h,12); ctx.clip(); ctx.fillStyle="#0b0b0b"; ctx.fillRect(x,y,w,h);
+    const st = _fcStates[idx];
+    if (st.img){
+      const drawW = st.w * st.sx, drawH = st.h * st.sx;
+      ctx.drawImage(st.img, x + st.ox, y + st.oy, drawW, drawH);
+    }
+    ctx.restore();
+    ctx.strokeStyle="#282828"; ctx.lineWidth=1; roundRect(ctx,x,y,w,h,12); ctx.stroke();
+  });
+
+  const url = c.toDataURL("image/png");
+  const a = document.createElement("a"); a.href=url; a.download=`stamptour_4cut_${Date.now()}.png`; a.click();
+});
+
+function roundRect(ctx,x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+  ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y); ctx.closePath();
+}
+
+// 도장판을 캔버스로 합성해서 dataURL 반환
+async function renderStampBoardToDataURL(){
+  const board = document.getElementById("stampBoard");
+  const imgs = [...board.querySelectorAll("img")]; // [배경, stamp..., ...]
+  if (!imgs.length) return undefined;
+
+  const W = board.clientWidth || 600;
+  const H = board.clientHeight || Math.round(W * 2/3);
+  const c = document.createElement("canvas"); c.width=W; c.height=H;
+  const ctx = c.getContext("2d");
+
+  await Promise.all(imgs.map(im=> im.complete ? Promise.resolve() : new Promise(res=> im.onload=res)));
+  imgs.forEach(im=> ctx.drawImage(im, 0, 0, W, H));
+  try { return c.toDataURL("image/png"); } catch { return undefined; }
+}
