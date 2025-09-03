@@ -1,4 +1,4 @@
-// v=2025-09-03-1
+// v=2025-09-03-2
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
 import {
   getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
@@ -99,11 +99,25 @@ const fcClose   = document.getElementById("fourcut-close");
 const fcImport  = document.getElementById("fourcut-import");
 const fcFile    = document.getElementById("fc-file");
 
-const FOURCUT_TEMPLATE = "./templates/fourcut_600x1800.png"; // png로 쓰면 경로만 교체
+const FOURCUT_TEMPLATE = "./templates/fourcut_600x1800.png";
 let _fcTemplateImg = null;
+let _fcTemplateReady = Promise.resolve(false);
 if (FOURCUT_TEMPLATE) {
   _fcTemplateImg = new Image();
+  _fcTemplateReady = new Promise((resolve)=>{
+    _fcTemplateImg.onload = () => resolve(true);
+    _fcTemplateImg.onerror = () => resolve(false);
+  });
   _fcTemplateImg.src = FOURCUT_TEMPLATE;
+}
+
+// 고해상도 내보내기 배율 계산 (템플릿 실제폭 기준, 없으면 DPR)
+function getExportScale() {
+  const W = fcStage?.clientWidth || 300; // 미리보기 폭
+  if (_fcTemplateImg && _fcTemplateImg.naturalWidth) {
+    return Math.max(2, Math.round(_fcTemplateImg.naturalWidth / W));
+  }
+  return Math.max(2, Math.round(window.devicePixelRatio || 2));
 }
 
 let _fcStream = null;
@@ -846,14 +860,21 @@ window.deleteAccount = async function() {
 // ======================= FourCut 본체 =======================
 
 cameraFab?.addEventListener("click", async () => {
-  const dataURL = await renderStampBoardToDataURL(); // 도장판 자동 캡쳐
+  const dataURL = await renderStampBoardToDataURL(getExportScale()); // 도장판 고해상도 캡처
   openFourCut(dataURL);
 });
 
 async function startFcCamera(){
   try {
     if (_fcStream) return;
-    _fcStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: _fcUseBack ? "environment" : "user" }, audio:false });
+    _fcStream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: _fcUseBack ? "environment" : "user",
+        width:  { ideal: 1920 },
+        height: { ideal: 1280 }
+      },
+      audio:false
+    });
     fcVideo.srcObject = _fcStream; await fcVideo.play();
   } catch(e){ console.warn("camera error", e); }
 }
@@ -914,6 +935,10 @@ function applyTransform(idx){
 // 제스처(드래그/핀치)
 fcSlots.forEach((slotEl)=>{
   const idx = parseInt(slotEl.dataset.index,10);
+
+  // 🔒 맨 위(도장판) 슬롯은 편집 불가
+  if (idx === 0) return;
+
   let active=false, startX=0, startY=0, baseOX=0, baseOY=0, pinch=false, baseDist=0, baseS=1;
 
   const getPts = (e)=>{
@@ -944,13 +969,15 @@ function updateSaveEnabled(){
   fcSave.disabled = !ok;
 }
 
-fcSave?.addEventListener("click", ()=>{
-  const W = fcStage.clientWidth, H = fcStage.clientHeight;        // 300×900
-  const c = document.createElement("canvas"); c.width = W*2; c.height = H*2; // 600×1800
-  const ctx = c.getContext("2d"); ctx.scale(2,2);
+fcSave?.addEventListener("click", async ()=>{
+  const W = fcStage.clientWidth, H = fcStage.clientHeight;     // 300×900
+  const SCALE = getExportScale();                              // 템플릿/기기 기준 가변 배율
+  const c = document.createElement("canvas"); c.width = W*SCALE; c.height = H*SCALE;
+  const ctx = c.getContext("2d"); ctx.scale(SCALE, SCALE);
+  ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high";
 
-  // 템플릿 먼저 (있으면)
-  if (_fcTemplateImg && _fcTemplateImg.complete) {
+  const ready = await _fcTemplateReady;
+  if (ready && _fcTemplateImg && _fcTemplateImg.complete) {
     ctx.drawImage(_fcTemplateImg, 0, 0, W, H);
   } else {
     ctx.fillStyle="#101010"; roundRect(ctx,0,0,W,H,20); ctx.fill();
@@ -984,16 +1011,21 @@ function roundRect(ctx,x,y,w,h,r){
   ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y); ctx.closePath();
 }
 
-// 도장판을 캔버스로 합성해서 dataURL 반환
-async function renderStampBoardToDataURL(){
+// 도장판을 캔버스로 합성해서 dataURL 반환 (고해상도 대응)
+async function renderStampBoardToDataURL(scale = 1){
   const board = document.getElementById("stampBoard");
   const imgs = [...board.querySelectorAll("img")]; // [배경, stamp..., ...]
   if (!imgs.length) return undefined;
 
   const W = board.clientWidth || 600;
   const H = board.clientHeight || Math.round(W * 2/3);
-  const c = document.createElement("canvas"); c.width=W; c.height=H;
+  const c = document.createElement("canvas");
+  c.width = Math.round(W * scale);
+  c.height = Math.round(H * scale);
   const ctx = c.getContext("2d");
+  ctx.scale(scale, scale);
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
 
   await Promise.all(imgs.map(im=> im.complete ? Promise.resolve() : new Promise(res=> im.onload=res)));
   imgs.forEach(im=> ctx.drawImage(im, 0, 0, W, H));
