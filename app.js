@@ -1,4 +1,4 @@
-// v=2025-09-03-3
+// 됐니?
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
 import {
   getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
@@ -22,7 +22,7 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db   = getDatabase(app);
 
-// 세션 지속성 (초기 1회 설정)
+// 세션 지속성
 (async () => {
   try { await setPersistence(auth, browserLocalPersistence); } catch(e) { console.warn(e); }
 })();
@@ -90,43 +90,39 @@ const cameraFab = document.getElementById("cameraFab");
 const fcOverlay = document.getElementById("fourcut-overlay");
 const fcStage   = document.getElementById("fourcut-stage");
 const fcSlots   = fcStage ? [...fcStage.querySelectorAll(".fc-slot")] : [];
+const fcVideo   = document.getElementById("fc-video");
+const fcShot    = document.getElementById("fc-shot");
+const fcFlip    = document.getElementById("fc-flip");
 const fcSel     = document.getElementById("fc-sel");
+const fcSelCam  = document.getElementById("fc-sel-cam");
+const fcOpen    = document.getElementById("fc-open");
+const fcFace    = document.getElementById("fc-face");
 const fcSave    = document.getElementById("fc-save");
 const fcClose   = document.getElementById("fourcut-close");
 const fcImport  = document.getElementById("fourcut-import");
-const fcFlip    = document.getElementById("fc-flip");
-const fcShot    = document.getElementById("fc-shot");
-const fcGallery = document.getElementById("fc-gallery");
 const fcFile    = document.getElementById("fc-file");
+const fcLivePanel   = document.getElementById("fc-live-panel");
+const fcCameraPanel = document.getElementById("fc-camera-panel");
+const modeLiveRadio = document.getElementById("fc-mode-live");
+const modeCamRadio  = document.getElementById("fc-mode-camera");
 
 const FOURCUT_TEMPLATE = "./templates/fourcut_600x1800.png";
 let _fcTemplateImg = null;
-let _fcTemplateReady = Promise.resolve(false);
 if (FOURCUT_TEMPLATE) {
   _fcTemplateImg = new Image();
-  _fcTemplateReady = new Promise((resolve)=>{
-    _fcTemplateImg.onload = () => resolve(true);
-    _fcTemplateImg.onerror = () => resolve(false);
-  });
   _fcTemplateImg.src = FOURCUT_TEMPLATE;
 }
 
-// 고해상도 내보내기 배율 계산 (템플릿 실제폭 기준, 없으면 DPR)
-function getExportScale() {
-  const W = fcStage?.clientWidth || 300; // 미리보기 폭
-  if (_fcTemplateImg && _fcTemplateImg.naturalWidth) {
-    return Math.max(2, Math.round(_fcTemplateImg.naturalWidth / W));
-  }
-  return Math.max(2, Math.round(window.devicePixelRatio || 2));
-}
-
-let _fcUseBack = true; // 전/후면 선택
-let _pendingSlotIdx = 1; // 다음 업로드가 들어갈 슬롯
-
+let _fcStream = null;
+let _fcUseBack = true; // 라이브 프리뷰 전/후면
+let _fcMode = "live";  // 'live' | 'camera'
 const _fcStates = [0,1,2,3].map(() => ({ img:null, w:0, h:0, sx:1, ox:0, oy:0 })); // sx: scale, o*: offset
-function toggleCameraFab(show){ if (cameraFab) cameraFab.style.display = show ? "block" : "none"; }
+
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
 
 // ===== 화면 전환 =====
+function toggleCameraFab(show){ if (cameraFab) cameraFab.style.display = show ? "block" : "none"; }
+
 function showLoginOnly() {
   loginSection.style.display  = "block";
   signupSection.style.display = "none";
@@ -713,53 +709,241 @@ function initNicknameAutocomplete() {
   input.dataset.autocompleteInit = "1";
 }
 
-// ===== 네컷: 카메라 없는 촬영 흐름 =====
+// ===== 설정 =====
+settingsBtn.onclick = () => openSettings();
+
+window.openSettings = async function() {
+  loginSection.style.display  = "none";
+  signupSection.style.display = "none";
+  appSection.style.display    = "none";
+  boothSection.style.display  = "none";
+  reserveSection.style.display= "none";
+  staffLoginSection.style.display = "none";
+  staffSection.style.display  = "none";
+  settingsSection.style.display = "block";
+
+  settingsMsg.textContent = "";
+  const user = auth.currentUser;
+  if (!user) { settingsMsg.textContent = "로그인이 필요합니다."; return; }
+
+  try {
+    const profSnap = await get(ref(db, `users/${user.uid}/profile`));
+    if (profSnap.exists()) {
+      const p = profSnap.val();
+      settingsNick.value  = p.nickname || "";
+      settingsPhone.value = (p.phone || "").toString();
+    } else {
+      settingsNick.value  = "";
+      settingsPhone.value = "";
+    }
+  } catch (e) {
+    settingsMsg.textContent = "프로필을 불러오지 못했습니다.";
+  }
+};
+
+window.closeSettings = function() {
+  settingsSection.style.display = "none";
+  appSection.style.display = "block";
+};
+
+async function updateReservationsForUser(uid, fields) {
+  const booths = Object.keys(BOOTH_INFO);
+  const tasks = [];
+  for (const booth of booths) {
+    try {
+      const resSnap = await get(ref(db, `reservations/${booth}`));
+      if (!resSnap.exists()) continue;
+      const byTime = resSnap.val();
+      for (const time of Object.keys(byTime)) {
+        if (byTime[time] && byTime[time][uid]) {
+          tasks.push(update(ref(db, `reservations/${booth}/${time}/${uid}`), fields));
+        }
+      }
+    } catch (e) {
+      console.error("예약표 업데이트 실패:", booth, e);
+    }
+  }
+  await Promise.all(tasks);
+}
+
+window.saveSettings = async function() {
+  const user = auth.currentUser;
+  if (!user) return alert("로그인이 필요합니다.");
+
+  const newNick = (settingsNick.value || "").trim();
+  const newPhone = (settingsPhone.value || "").replace(/\D/g, "");
+
+  if (!newNick) return alert("닉네임을 입력하세요.");
+  if (newNick.length > 8) return alert("닉네임은 최대 8글자입니다.");
+
+  try {
+    const curNickSnap = await get(ref(db, `users/${user.uid}/profile/nickname`));
+    const curNick = curNickSnap.exists() ? curNickSnap.val() : null;
+
+    if (newNick !== curNick) {
+      const qDup = query(ref(db, "users"), orderByChild("profile/nickname"), equalTo(newNick));
+      const dup = await get(qDup);
+      if (dup.exists()) {
+        const keys = Object.keys(dup.val());
+        const someoneElse = keys.some(k => k !== user.uid);
+        if (someoneElse) return alert("이미 존재하는 닉네임입니다. 다른 닉네임을 사용해주세요.");
+      }
+    }
+
+    await update(ref(db, `users/${user.uid}/profile`), {
+      nickname: newNick,
+      phone: newPhone
+    });
+
+    await updateReservationsForUser(user.uid, { nickname: newNick, phone: newPhone });
+
+    userDisplay.textContent = newNick || (user.email || "");
+    settingsMsg.textContent = "✅ 저장되었습니다.";
+    setTimeout(() => { settingsMsg.textContent = ""; }, 1500);
+
+    if (reserveSection.style.display === "block" && currentReserveBooth) await refreshReserveTable();
+    if (staffSection.style.display === "block" && currentStaffBooth) await loadStaffReserveAdmin();
+  } catch (e) {
+    alert("저장 실패: " + e.message);
+  }
+};
+
+// 회원탈퇴
+async function deleteUserReservations(uid) {
+  const booths = Object.keys(BOOTH_INFO);
+  const tasks = [];
+  for (const booth of booths) {
+    try {
+      const resSnap = await get(ref(db, `reservations/${booth}`));
+      if (!resSnap.exists()) continue;
+      const byTime = resSnap.val();
+      for (const time of Object.keys(byTime)) {
+        if (byTime[time] && byTime[time][uid]) {
+          tasks.push(remove(ref(db, `reservations/${booth}/${time}/${uid}`)));
+        }
+      }
+    } catch (e) {
+      console.error("예약 정리 실패:", booth, e);
+    }
+  }
+  await Promise.all(tasks);
+}
+
+window.deleteAccount = async function() {
+  const user = auth.currentUser;
+  if (!user) return alert("로그인이 필요합니다.");
+
+  const ok = confirm("정말로 회원탈퇴 하시겠습니까? 모든 데이터가 삭제되며 되돌릴 수 없습니다.");
+  if (!ok) return;
+
+  try {
+    await deleteUserReservations(user.uid);
+    await remove(ref(db, `users/${user.uid}`));
+    await deleteUser(user);
+    alert("계정이 삭제되었습니다.");
+  } catch (e) {
+    console.error(e);
+    if (e.code === "auth/requires-recent-login") {
+      alert("보안을 위해 최근 로그인 후 다시 시도해주세요.");
+      try { await signOut(auth); } catch {}
+    } else {
+      alert("회원탈퇴 실패: " + e.message);
+    }
+  }
+};
+
+// ======================= FourCut 본체 =======================
 cameraFab?.addEventListener("click", async () => {
-  const dataURL = await renderStampBoardToDataURL(getExportScale()); // 도장판 고해상도 캡처
+  const dataURL = await renderStampBoardToDataURL(); // 도장판 자동 캡쳐
   openFourCut(dataURL);
 });
 
+// 모드 토글
+modeLiveRadio?.addEventListener("change", (e)=> e.target.checked && setFcMode("live"));
+modeCamRadio?.addEventListener("change", (e)=> e.target.checked && setFcMode("camera"));
+
+function setFcMode(mode){
+  _fcMode = mode;
+  if (mode === "live") {
+    fcLivePanel.classList.remove("hide");
+    fcCameraPanel.classList.add("hide");
+    startFcCamera();
+  } else {
+    fcCameraPanel.classList.remove("hide");
+    fcLivePanel.classList.add("hide");
+    stopFcCamera();
+  }
+}
+
+// 라이브 카메라
+async function startFcCamera(){
+  try {
+    if (_fcStream) return;
+    _fcStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: _fcUseBack ? "environment" : "user" }, audio:false });
+    fcVideo.srcObject = _fcStream; await fcVideo.play();
+  } catch(e){ console.warn("camera error", e); }
+}
+function stopFcCamera(){
+  if (!_fcStream) return; _fcStream.getTracks().forEach(t=>t.stop()); _fcStream=null; fcVideo.srcObject=null;
+}
+
 function openFourCut(stampDataURL){
   fcOverlay.style.display = "flex";
+  // iOS(특히 홈 화면 추가 PWA)는 기본 카메라 모드가 호환이 좋음
+  const preferCamera = isIOS || window.innerWidth < 900;
+  (preferCamera ? modeCamRadio : modeLiveRadio).checked = true;
+  setFcMode(preferCamera ? "camera" : "live");
+
   if (stampDataURL) loadIntoSlot(0, stampDataURL, true);
   updateSaveEnabled();
 }
-fcClose?.addEventListener("click", ()=>{ fcOverlay.style.display="none"; });
+fcClose?.addEventListener("click", ()=>{ fcOverlay.style.display="none"; stopFcCamera(); });
 
-fcImport?.addEventListener("click", async ()=>{
-  // 현재 도장판을 다시 캡쳐해서 슬롯0에 삽입
-  const url = await renderStampBoardToDataURL(getExportScale());
-  if (url) loadIntoSlot(0, url, true);
+// 도장판 외부 이미지로 넣기
+fcImport?.addEventListener("click", ()=>{
+  fcFile.onchange = (e)=>{
+    const f = e.target.files?.[0]; if(!f) return;
+    const r = new FileReader();
+    r.onload = ()=> loadIntoSlot(0, r.result, true);
+    r.readAsDataURL(f);
+    fcFile.value="";
+  };
+  fcFile.removeAttribute("capture");
+  fcFile.setAttribute("accept", "image/*");
+  fcFile.click();
 });
 
-fcFlip?.addEventListener("click", ()=>{
-  _fcUseBack = !_fcUseBack;
-  fcFlip.textContent = _fcUseBack ? "전/후면" : "후/전면";
-});
+// 라이브 전/후면
+fcFlip?.addEventListener("click", async ()=>{ _fcUseBack=!_fcUseBack; stopFcCamera(); await startFcCamera(); });
 
-// 촬영(기본 카메라 앱 열기)
+// 라이브에서 한 컷 캡쳐
 fcShot?.addEventListener("click", ()=>{
-  _pendingSlotIdx = parseInt(fcSel.value, 10);
+  const idx = parseInt(fcSel.value,10);
+  if (!_fcStream || !fcVideo.videoWidth) return;
+  const c = document.createElement("canvas");
+  c.width = fcVideo.videoWidth; c.height = fcVideo.videoHeight;
+  c.getContext("2d").drawImage(fcVideo, 0,0,c.width,c.height);
+  loadIntoSlot(idx, c.toDataURL("image/jpeg", .92), true);
+  updateSaveEnabled();
+});
+
+// 기본 카메라(앱) 열기
+fcOpen?.addEventListener("click", ()=>{
+  const idx = parseInt(fcSelCam.value,10);
+  fcFile.dataset.slot = idx.toString();
+  // 힌트: 전/후면
   try {
-    fcFile.setAttribute("capture", _fcUseBack ? "environment" : "user");
+    fcFile.setAttribute("capture", fcFace.value || "environment");
   } catch {}
+  fcFile.setAttribute("accept", "image/*");
+  fcFile.onchange = (e)=>{
+    const f = e.target.files?.[0]; if(!f) return;
+    const r = new FileReader();
+    r.onload = ()=> { loadIntoSlot(idx, r.result, true); updateSaveEnabled(); };
+    r.readAsDataURL(f);
+    fcFile.value="";
+  };
   fcFile.click();
-});
-
-// 앨범 선택
-fcGallery?.addEventListener("click", ()=>{
-  _pendingSlotIdx = parseInt(fcSel.value, 10);
-  try { fcFile.removeAttribute("capture"); } catch {}
-  fcFile.click();
-});
-
-// 파일 선택 처리
-fcFile?.addEventListener("change", (e)=>{
-  const f = e.target.files?.[0]; if(!f) return;
-  const r = new FileReader();
-  r.onload = ()=>{ loadIntoSlot(_pendingSlotIdx, r.result, true); updateSaveEnabled(); };
-  r.readAsDataURL(f);
-  fcFile.value = "";
 });
 
 function loadIntoSlot(idx, dataURL, center=false){
@@ -767,6 +951,7 @@ function loadIntoSlot(idx, dataURL, center=false){
   const img = new Image(); img.onload = ()=>{
     _fcStates[idx].img = img; _fcStates[idx].w = img.width; _fcStates[idx].h = img.height;
     const slotW = slotEl.clientWidth, slotH = slotEl.clientHeight;
+    // 가로 맞춤(3:2 슬롯이므로 대부분 가로 채움)
     const s = slotW / img.width; _fcStates[idx].sx = s;
     _fcStates[idx].ox = 0; _fcStates[idx].oy = center ? (slotH - img.height*s)/2 : 0;
     applyTransform(idx);
@@ -781,11 +966,10 @@ function applyTransform(idx){
   imgEl.style.transform = `translate(${st.ox}px, ${st.oy}px) scale(${st.sx})`;
 }
 
-// 제스처(드래그/핀치) — 슬롯0(도장판)은 잠금
+// 제스처(드래그/핀치) — 슬롯0(도장판)는 잠금
 fcSlots.forEach((slotEl)=>{
   const idx = parseInt(slotEl.dataset.index,10);
-  if (idx === 0) return; // 🔒 편집 비활성
-
+  if (idx === 0) return; // 잠금
   let active=false, startX=0, startY=0, baseOX=0, baseOY=0, pinch=false, baseDist=0, baseS=1;
 
   const getPts = (e)=>{
@@ -802,11 +986,12 @@ fcSlots.forEach((slotEl)=>{
   };
   const onUp = ()=>{ active=false; pinch=false; };
 
-  slotEl.addEventListener("pointerdown", onDown);
-  window.addEventListener("pointermove", onMove); window.addEventListener("pointerup", onUp);
+  slotEl.addEventListener("pointerdown", onDown, {passive:false});
+  window.addEventListener("pointermove", onMove, {passive:false});
+  window.addEventListener("pointerup", onUp, {passive:false});
   slotEl.addEventListener("touchstart", onDown, {passive:false});
   slotEl.addEventListener("touchmove", onMove, {passive:false});
-  slotEl.addEventListener("touchend", onUp);
+  slotEl.addEventListener("touchend", onUp, {passive:false});
 });
 function dist(a,b){ return Math.hypot(a.x-b.x, a.y-b.y); }
 function clamp(x,a,b){ return Math.max(a, Math.min(b,x)); }
@@ -816,18 +1001,31 @@ function updateSaveEnabled(){
   fcSave.disabled = !ok;
 }
 
-fcSave?.addEventListener("click", async ()=>{
-  const W = fcStage.clientWidth, H = fcStage.clientHeight;     // 300×900
-  const SCALE = getExportScale();                              // 템플릿/기기 기준 가변 배율
-  const c = document.createElement("canvas"); c.width = W*SCALE; c.height = H*SCALE;
-  const ctx = c.getContext("2d"); ctx.scale(SCALE, SCALE);
-  ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high";
-
-  const ready = await _fcTemplateReady;
-  if (ready && _fcTemplateImg && _fcTemplateImg.complete) {
-    ctx.drawImage(_fcTemplateImg, 0, 0, W, H);
+// 고해상도 저장(템플릿 크기 우선, 없으면 DPR 기반)
+fcSave?.addEventListener("click", ()=>{
+  const stageW = fcStage.clientWidth, stageH = fcStage.clientHeight; // 미리보기 좌표계
+  let outW, outH;
+  if (_fcTemplateImg && _fcTemplateImg.complete && _fcTemplateImg.naturalWidth && _fcTemplateImg.naturalHeight) {
+    outW = _fcTemplateImg.naturalWidth;
+    outH = _fcTemplateImg.naturalHeight;
   } else {
-    ctx.fillStyle="#101010"; roundRect(ctx,0,0,W,H,20); ctx.fill();
+    const dpr = Math.max(2, Math.round(window.devicePixelRatio || 2));
+    outW = Math.max(600, Math.round(stageW * dpr));
+    outH = Math.round(outW * 3); // 1:3 비율 유지
+  }
+
+  const c = document.createElement("canvas"); c.width = outW; c.height = outH;
+  const ctx = c.getContext("2d");
+
+  // 스케일 매트릭스(미리보기 좌표 → 출력 좌표)
+  const sx = outW / stageW, sy = outH / stageH;
+  ctx.setTransform(sx, 0, 0, sy, 0, 0);
+
+  // 템플릿 먼저
+  if (_fcTemplateImg && _fcTemplateImg.complete) {
+    ctx.drawImage(_fcTemplateImg, 0, 0, stageW, stageH);
+  } else {
+    ctx.fillStyle="#101010"; roundRect(ctx,0,0,stageW,stageH,20); ctx.fill();
   }
 
   // 슬롯 그리기
@@ -839,7 +1037,8 @@ fcSave?.addEventListener("click", async ()=>{
     ctx.save(); roundRect(ctx,x,y,w,h,12); ctx.clip(); ctx.fillStyle="#0b0b0b"; ctx.fillRect(x,y,w,h);
     const st = _fcStates[idx];
     if (st.img){
-      const drawW = st.w * st.sx, drawH = st.h * st.sx;
+      const drawW = st.w * st.sx;
+      const drawH = st.h * st.sx;
       ctx.drawImage(st.img, x + st.ox, y + st.oy, drawW, drawH);
     }
     ctx.restore();
@@ -858,23 +1057,18 @@ function roundRect(ctx,x,y,w,h,r){
   ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y); ctx.closePath();
 }
 
-// 도장판을 캔버스로 합성해서 dataURL 반환 (고해상도 대응)
-async function renderStampBoardToDataURL(scale = 1){
+// 도장판을 캔버스로 합성해서 dataURL 반환
+async function renderStampBoardToDataURL(){
   const board = document.getElementById("stampBoard");
-  const imgs = [...board.querySelectorAll("img")]; // [배경, stamp..., ...]
+  const imgs = [...board.querySelectorAll("img")];
   if (!imgs.length) return undefined;
 
   const W = board.clientWidth || 600;
   const H = board.clientHeight || Math.round(W * 2/3);
-  const c = document.createElement("canvas");
-  c.width = Math.round(W * scale);
-  c.height = Math.round(H * scale);
+  const c = document.createElement("canvas"); c.width=W; c.height=H;
   const ctx = c.getContext("2d");
-  ctx.scale(scale, scale);
-  ctx.imageSmoothingEnabled = true;
-  ctx.imageSmoothingQuality = "high";
 
-  await Promise.all(imgs.map(im=> im.complete ? Promise.resolve() : new Promise(res=> im.onload=res)));
+  await Promise.all(imgs.map(im=> im.complete ? Promise.resolve() : new Promise(res=> { im.onload=res; im.onerror=res; })));
   imgs.forEach(im=> ctx.drawImage(im, 0, 0, W, H));
   try { return c.toDataURL("image/png"); } catch { return undefined; }
 }
