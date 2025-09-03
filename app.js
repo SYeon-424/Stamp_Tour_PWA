@@ -1,4 +1,4 @@
-// v=2025-09-01-2
+// v=2025-09-03-1
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
 import {
   getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
@@ -85,7 +85,7 @@ const settingsNick  = document.getElementById("settings-nickname");
 const settingsPhone = document.getElementById("settings-phone");
 const settingsMsg   = document.getElementById("settings-msg");
 
-// ===== FourCut 전역 =====
+// ===== FourCut 전역/템플릿 =====
 const cameraFab = document.getElementById("cameraFab");
 const fcOverlay = document.getElementById("fourcut-overlay");
 const fcStage   = document.getElementById("fourcut-stage");
@@ -98,6 +98,13 @@ const fcSave    = document.getElementById("fc-save");
 const fcClose   = document.getElementById("fourcut-close");
 const fcImport  = document.getElementById("fourcut-import");
 const fcFile    = document.getElementById("fc-file");
+
+const FOURCUT_TEMPLATE = "./templates/fourcut_600x1800.svg"; // png로 쓰면 경로만 교체
+let _fcTemplateImg = null;
+if (FOURCUT_TEMPLATE) {
+  _fcTemplateImg = new Image();
+  _fcTemplateImg.src = FOURCUT_TEMPLATE;
+}
 
 let _fcStream = null;
 let _fcUseBack = true;
@@ -225,12 +232,10 @@ loginBtn.onclick = async () => {
       if (!email) { alert("이 계정에 이메일 정보가 없어 로그인할 수 없습니다."); return; }
     }
 
-    // (보수적으로 한 번 더) 세션 지속성
     try { await setPersistence(auth, browserLocalPersistence); } catch {}
 
     await signInWithEmailAndPassword(auth, email, password);
 
-    // ✅ 즉시 렌더 (onAuthStateChanged 기다리지 않음)
     if (auth.currentUser) {
       await renderLoggedInUI(auth.currentUser);
     } else {
@@ -262,13 +267,7 @@ async function loadStamps(uid) {
   board.appendChild(bg);
   try {
     const snap = await get(ref(db, `users/${uid}/stamps`));
-    if (!snap.exists()) {
-      // 완료 여부 체크
-      try {
-        toggleCameraFab(false);
-      } catch {}
-      return;
-    }
+    if (!snap.exists()) { toggleCameraFab(false); return; }
     const stamps = snap.val();
     Object.keys(stamps).forEach((booth) => {
       const data = stamps[booth]; if (!data?.stamped) return;
@@ -279,7 +278,7 @@ async function loadStamps(uid) {
     });
   } catch (e) { console.error(e); }
 
-  // --- 모든 스탬프 완료 시 카메라 버튼 노출 ---
+  // 완료 시 📷 버튼 노출
   try {
     const total = Object.keys(STAMP_IMAGES).length;
     const snap2 = await get(ref(db, `users/${uid}/stamps`));
@@ -846,13 +845,11 @@ window.deleteAccount = async function() {
 
 // ======================= FourCut 본체 =======================
 
-// 플로팅 버튼: 클릭 → 도장판 캡쳐 후 모달 열기
 cameraFab?.addEventListener("click", async () => {
-  const dataURL = await renderStampBoardToDataURL();
+  const dataURL = await renderStampBoardToDataURL(); // 도장판 자동 캡쳐
   openFourCut(dataURL);
 });
 
-// 모달 열기/닫기 & 카메라
 async function startFcCamera(){
   try {
     if (_fcStream) return;
@@ -948,13 +945,18 @@ function updateSaveEnabled(){
 }
 
 fcSave?.addEventListener("click", ()=>{
-  const W = fcStage.clientWidth, H = fcStage.clientHeight;
-  const c = document.createElement("canvas"); c.width = W*2; c.height = H*2;
+  const W = fcStage.clientWidth, H = fcStage.clientHeight;        // 300×900
+  const c = document.createElement("canvas"); c.width = W*2; c.height = H*2; // 600×1800
   const ctx = c.getContext("2d"); ctx.scale(2,2);
-  // 배경
-  ctx.fillStyle="#101010"; roundRect(ctx,0,0,W,H,20); ctx.fill();
 
-  // 슬롯들 복원
+  // 템플릿 먼저 (있으면)
+  if (_fcTemplateImg && _fcTemplateImg.complete) {
+    ctx.drawImage(_fcTemplateImg, 0, 0, W, H);
+  } else {
+    ctx.fillStyle="#101010"; roundRect(ctx,0,0,W,H,20); ctx.fill();
+  }
+
+  // 슬롯 그리기
   fcSlots.forEach((slotEl, idx)=>{
     const r = slotEl.getBoundingClientRect();
     const sR = fcStage.getBoundingClientRect();
