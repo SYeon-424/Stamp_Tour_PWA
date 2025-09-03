@@ -7,7 +7,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
-  <link rel="manifest" href="manifest.json?v=2025-09-03-2">
+  <link rel="manifest" href="manifest.json?v=2025-09-03-3">
   <meta name="theme-color" content="#317EFB"/>
   <style>
     :root { color-scheme: dark; }
@@ -156,7 +156,7 @@
       align-items: center;
       justify-content: center;
       padding: env(safe-area-inset-top) 12px env(safe-area-inset-bottom);
-      overflow: auto;                /* 바깥도 비상시 스크롤 가능 */
+      overflow: auto;                /* 만약을 위한 외부 스크롤 */
     }
     .modal-shell {
       width: min(94vw, 980px);
@@ -179,11 +179,10 @@
     }
     .modal-body {
       padding: 12px;
-      overflow: auto;                /* 본문 자체도 스크롤 */
+      overflow: auto;
       -webkit-overflow-scrolling: touch;
     }
 
-    /* 네컷 영역 그리드 */
     .fc-grid {
       display: grid;
       grid-template-columns: 1fr 320px;
@@ -193,7 +192,6 @@
       .fc-grid { grid-template-columns: 1fr; }
     }
 
-    /* 슬롯 내부 이미지 제스처 */
     .fc-slot .fc-img {
       position: absolute; top: 0; left: 0;
       transform-origin: 0 0;
@@ -355,7 +353,7 @@
   <button id="cameraFab" title="네컷 만들기" aria-label="네컷 만들기"
     style="display:none; position:fixed; right:14px; bottom:14px; z-index:1200; width:54px; height:54px; border-radius:50%; border:1px solid #444; background:#2a2a2a; color:#fff; box-shadow:0 8px 24px rgba(0,0,0,.4); font-size:22px;">📷</button>
 
-  <!-- 네컷 모달 + 파일 입력 -->
+  <!-- 네컷 모달 -->
   <div id="fourcut-overlay" style="display:none;">
     <div class="modal-shell">
       <div class="modal-header">
@@ -372,11 +370,11 @@
             <div id="fourcut-stage"
                  style="position:relative; width:300px; height:900px; background:#111; border-radius:20px; box-shadow:0 6px 24px rgba(0,0,0,.5) inset, 0 8px 28px rgba(0,0,0,.6); border:1px solid #2a2a2a;">
 
-              <!-- 템플릿 미리보기(선택) -->
+              <!-- 템플릿 미리보기 -->
               <img id="fc-template" src="./templates/fourcut_600x1800.png"
                    alt="" style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover; pointer-events:none; opacity:.9;" />
 
-              <!-- 3:2 슬롯. 미리보기 기준(300×900): 좌우 12, 위/아래 28, 간격 36 -->
+              <!-- 3:2 슬롯들 -->
               <div class="fc-slot" data-index="0"
                    style="position:absolute; left:12px; right:12px; top:28px;  height:184px; border:1px dashed #3a3a3a; border-radius:12px; background:#0b0b0b; overflow:hidden;">
                 <span style="position:absolute; right:6px; bottom:6px; font-size:12px; background:rgba(0,0,0,.5); border:1px solid #333; padding:2px 6px; border-radius:8px;">도장판</span>
@@ -415,25 +413,30 @@
                 <button id="fc-flip" style="padding:8px 12px; border-radius:10px; border:1px solid #333; background:#1c1c1c; color:#eee;">전/후면</button>
                 <button id="fc-shot" style="padding:8px 12px; border-radius:10px; border:1px solid #333; background:#1c1c1c; color:#eee;">촬영</button>
               </div>
+              <small style="opacity:.7; display:block; margin-top:6px;">카메라가 안 켜지면 자동으로 파일 촬영으로 전환됩니다.</small>
             </div>
             <div style="border:1px solid #242424; border-radius:12px; padding:10px; background:#121212; display:flex; justify-content:space-between; align-items:center;">
               <span style="font-size:14px; color:#ccc;">4칸 채우면 저장 가능</span>
               <button id="fc-save" disabled style="padding:8px 12px; border-radius:10px; border:1px solid #333; background:#1c1c1c; color:#eee;">네컷 저장</button>
             </div>
-            <small style="opacity:.7;">두 손가락으로 사진 이동/확대 가능 (iOS는 HTTPS + 카메라 권한 필요)</small>
+            <small style="opacity:.7;">두 손가락으로 사진 이동/확대 가능 (슬롯 #0 도장판은 잠금, iOS는 HTTPS + 카메라 권한 필요)</small>
           </div>
         </div>
       </div>
     </div>
   </div>
 
-  <input id="fc-file" type="file" accept="image/*" capture="environment" style="display:none;" />
+  <!-- 파일 입력들 -->
+  <input id="fc-file" type="file" accept="image/*" style="display:none;" />
+  <input id="fc-cam-file" type="file" accept="image/*" capture="environment" style="display:none;" />
 
   <!-- 버전 쿼리로 캐시 무력화 -->
-  <script type="module" src="app.js?v=2025-09-03-2"></script>
+  <script type="module" src="app.js?v=2025-09-03-3"></script>
   <script>
     if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("./service-worker.js?v=2025-09-03-2").catch(console.error);
+      navigator.serviceWorker.register("./service-worker.js?v=2025-09-03-3")
+        .then(reg => reg.update?.())
+        .catch(console.error);
     }
     function closeSignup(){ document.getElementById('signup-section').style.display='none'; document.getElementById('login-section').style.display='block'; }
   </script>
