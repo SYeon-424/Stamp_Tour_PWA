@@ -1,4 +1,4 @@
-// v=2025-11-09-1 (four-cut removed)
+// v=2025-11-09-1 (four-cut removed + theme toggle)
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
 import {
   getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
@@ -85,6 +85,25 @@ const settingsNick  = document.getElementById("settings-nickname");
 const settingsPhone = document.getElementById("settings-phone");
 const settingsMsg   = document.getElementById("settings-msg");
 
+// ===== Theme =====
+const THEME_KEY = "theme"; // "dark" | "light"
+
+// 현재 문서에 테마 적용 + 브라우저 툴바 색상 동기화
+function applyTheme(theme) {
+  const root = document.documentElement;
+  const meta = document.querySelector('meta[name="theme-color"]');
+  root.setAttribute("data-theme", theme);
+  if (meta) meta.setAttribute("content", theme === "light" ? "#ffffff" : "#317EFB");
+}
+
+// 로컬 우선 적용(로그인 전에도 유지)
+(function initThemeEarly(){
+  try {
+    const saved = localStorage.getItem(THEME_KEY);
+    applyTheme(saved === "light" ? "light" : "dark"); // 기본 다크
+  } catch { applyTheme("dark"); }
+})();
+
 // ===== 화면 전환 =====
 function showLoginOnly() {
   loginSection.style.display  = "block";
@@ -109,10 +128,18 @@ async function renderLoggedInUI(user) {
   settingsSection.style.display = "none";
   settingsBtn.style.display   = "flex";
 
+  // 닉네임 표시
   try {
     const nickSnap = await get(ref(db, `users/${user.uid}/profile/nickname`));
     userDisplay.textContent = nickSnap.exists() ? nickSnap.val() : (user.email || "");
   } catch { userDisplay.textContent = user.email || ""; }
+
+  // 사용자 테마 적용(있으면 로컬도 동기화)
+  try {
+    const themeSnap = await get(ref(db, `users/${user.uid}/profile/theme`));
+    const theme = themeSnap.exists() ? (themeSnap.val() === "light" ? "light" : "dark") : null;
+    if (theme) { applyTheme(theme); try { localStorage.setItem(THEME_KEY, theme); } catch {} }
+  } catch {}
 
   await loadStamps(user.uid);
   await renderBoothList();
@@ -173,7 +200,7 @@ signupBtn.onclick = async () => {
 
     const cred = await createUserWithEmailAndPassword(auth, email, password);
     await set(ref(db, `users/${cred.user.uid}`), {
-      profile: { email, nickname, phone, gender, birth, createdAt: Date.now() },
+      profile: { email, nickname, phone, gender, birth, createdAt: Date.now(), theme: (localStorage.getItem(THEME_KEY) || "dark") },
       stamps: {}
     });
 
@@ -239,7 +266,7 @@ async function loadStamps(uid) {
   board.appendChild(bg);
   try {
     const snap = await get(ref(db, `users/${uid}/stamps`));
-    if (!snap.exists()) return;             // 안전 가드
+    if (!snap.exists()) return;
     const stamps = snap.val() || {};
     Object.keys(stamps).forEach((booth) => {
       const data = stamps[booth]; if (!data?.stamped) return;
@@ -693,6 +720,24 @@ window.openSettings = async function() {
     }
   } catch (e) {
     settingsMsg.textContent = "프로필을 불러오지 못했습니다.";
+  }
+
+  // 테마 체크박스 상태 및 핸들러
+  const themeCheckbox = document.getElementById("settings-theme");
+  const currentTheme = document.documentElement.getAttribute("data-theme") || "dark";
+  if (themeCheckbox) themeCheckbox.checked = (currentTheme === "dark");
+
+  if (themeCheckbox && !themeCheckbox.dataset.bound) {
+    themeCheckbox.addEventListener("change", async () => {
+      const theme = themeCheckbox.checked ? "dark" : "light";
+      applyTheme(theme);
+      try { localStorage.setItem(THEME_KEY, theme); } catch {}
+      const user = auth.currentUser;
+      if (user) {
+        try { await update(ref(db, `users/${user.uid}/profile`), { theme }); } catch(e){ console.warn(e); }
+      }
+    });
+    themeCheckbox.dataset.bound = "1";
   }
 };
 
