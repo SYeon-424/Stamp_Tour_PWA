@@ -1,4 +1,4 @@
-// v=2025-09-03-3
+// v=2025-11-09-1 (four-cut removed)
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
 import {
   getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
@@ -85,46 +85,7 @@ const settingsNick  = document.getElementById("settings-nickname");
 const settingsPhone = document.getElementById("settings-phone");
 const settingsMsg   = document.getElementById("settings-msg");
 
-// ===== FourCut 전역/템플릿 =====
-const cameraFab = document.getElementById("cameraFab");
-const fcOverlay = document.getElementById("fourcut-overlay");
-const fcStage   = document.getElementById("fourcut-stage");
-const fcSlots   = fcStage ? [...fcStage.querySelectorAll(".fc-slot")] : [];
-const fcVideo   = document.getElementById("fc-video");
-const fcShot    = document.getElementById("fc-shot");
-const fcFlip    = document.getElementById("fc-flip");
-const fcSel     = document.getElementById("fc-sel");
-const fcSelCam  = document.getElementById("fc-sel-cam");
-const fcOpen    = document.getElementById("fc-open");
-// const fcFace = document.getElementById("fc-face");  // (제거됨)
-const fcSave    = document.getElementById("fc-save");
-const fcClose   = document.getElementById("fourcut-close");
-const fcImport  = document.getElementById("fourcut-import");
-const fcFile    = document.getElementById("fc-file");
-const fcLivePanel   = document.getElementById("fc-live-panel");
-const fcCameraPanel = document.getElementById("fc-camera-panel");
-const modeLiveRadio = document.getElementById("fc-mode-live");
-const modeCamRadio  = document.getElementById("fc-mode-camera");
-
-const FOURCUT_TEMPLATE = "./templates/fourcut_600x1800.png";
-let _fcTemplateImg = null;
-if (FOURCUT_TEMPLATE) {
-  _fcTemplateImg = new Image();
-  _fcTemplateImg.src = FOURCUT_TEMPLATE;
-}
-
-let _fcStream = null;
-let _fcUseBack = true; // 라이브 프리뷰 전/후면
-let _fcMode = "live";  // 'live' | 'camera'
-// 크기 조절/이동 비활성화
-const ALLOW_ADJUST = false;
-
-const _fcStates = [0,1,2,3].map(() => ({ img:null, w:0, h:0, sx:1, ox:0, oy:0 }));
-const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-
 // ===== 화면 전환 =====
-function toggleCameraFab(show){ if (cameraFab) cameraFab.style.display = show ? "block" : "none"; }
-
 function showLoginOnly() {
   loginSection.style.display  = "block";
   signupSection.style.display = "none";
@@ -278,8 +239,8 @@ async function loadStamps(uid) {
   board.appendChild(bg);
   try {
     const snap = await get(ref(db, `users/${uid}/stamps`));
-    if (!snap.exists()) { toggleCameraFab(false); return; }
-    const stamps = snap.val();
+    if (!snap.exists()) return;             // 안전 가드
+    const stamps = snap.val() || {};
     Object.keys(stamps).forEach((booth) => {
       const data = stamps[booth]; if (!data?.stamped) return;
       const layer = document.createElement("img");
@@ -288,14 +249,6 @@ async function loadStamps(uid) {
       board.appendChild(layer);
     });
   } catch (e) { console.error(e); }
-
-  // 완료 시 📷 버튼 노출
-  try {
-    const total = Object.keys(STAMP_IMAGES).length;
-    const snap2 = await get(ref(db, `users/${uid}/stamps`));
-    const count = snap2.exists() ? Object.values(snap2.val()).filter(v => v?.stamped).length : 0;
-    toggleCameraFab(count >= total);
-  } catch {}
 }
 
 window.visitBooth = async function(boothName) {
@@ -853,229 +806,3 @@ window.deleteAccount = async function() {
     }
   }
 };
-
-// ======================= FourCut 본체 =======================
-cameraFab?.addEventListener("click", async () => {
-  const dataURL = await renderStampBoardToDataURL(); // 도장판 자동 캡쳐
-  openFourCut(dataURL);
-});
-
-// 모드 토글
-modeLiveRadio?.addEventListener("change", (e)=> e.target.checked && setFcMode("live"));
-modeCamRadio?.addEventListener("change", (e)=> e.target.checked && setFcMode("camera"));
-
-function setFcMode(mode){
-  _fcMode = mode;
-  if (mode === "live") {
-    fcLivePanel.classList.remove("hide");
-    fcCameraPanel.classList.add("hide");
-    startFcCamera();
-  } else {
-    fcCameraPanel.classList.remove("hide");
-    fcLivePanel.classList.add("hide");
-    stopFcCamera();
-  }
-}
-
-// 라이브 카메라
-async function startFcCamera(){
-  try {
-    if (_fcStream) return;
-    _fcStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: _fcUseBack ? "environment" : "user" }, audio:false });
-    fcVideo.srcObject = _fcStream; await fcVideo.play();
-  } catch(e){ console.warn("camera error", e); }
-}
-function stopFcCamera(){
-  if (!_fcStream) return; _fcStream.getTracks().forEach(t=>t.stop()); _fcStream=null; fcVideo.srcObject=null;
-}
-
-function openFourCut(stampDataURL){
-  fcOverlay.style.display = "flex";
-  // iOS/모바일은 기본 카메라 모드가 호환 좋음
-  const preferCamera = isIOS || window.innerWidth < 900;
-  (preferCamera ? modeCamRadio : modeLiveRadio).checked = true;
-  setFcMode(preferCamera ? "camera" : "live");
-
-  if (stampDataURL) loadIntoSlot(0, stampDataURL, true);
-  updateSaveEnabled();
-}
-fcClose?.addEventListener("click", ()=>{ fcOverlay.style.display="none"; stopFcCamera(); });
-
-// 도장판 외부 이미지로 넣기
-fcImport?.addEventListener("click", ()=>{
-  fcFile.onchange = (e)=>{
-    const f = e.target.files?.[0]; if(!f) return;
-    const r = new FileReader();
-    r.onload = ()=> loadIntoSlot(0, r.result, true);
-    r.readAsDataURL(f);
-    fcFile.value="";
-  };
-  fcFile.removeAttribute("capture");
-  fcFile.setAttribute("accept", "image/*");
-  fcFile.click();
-});
-
-// 라이브 전/후면
-fcFlip?.addEventListener("click", async ()=>{ _fcUseBack=!_fcUseBack; stopFcCamera(); await startFcCamera(); });
-
-// 라이브에서 한 컷 캡쳐
-fcShot?.addEventListener("click", ()=>{
-  const idx = parseInt(fcSel.value,10);
-  if (!_fcStream || !fcVideo.videoWidth) return;
-  const c = document.createElement("canvas");
-  c.width = fcVideo.videoWidth; c.height = fcVideo.videoHeight;
-  c.getContext("2d").drawImage(fcVideo, 0,0,c.width,c.height);
-  loadIntoSlot(idx, c.toDataURL("image/jpeg", .92), true);
-  updateSaveEnabled();
-});
-
-// 기본 카메라(앱) 열기 — 전/후면 선택 제거, 가로 촬영 안내
-fcOpen?.addEventListener("click", ()=>{
-  const idx = parseInt(fcSelCam.value,10);
-  fcFile.dataset.slot = idx.toString();
-  // 후면 기본 힌트만 유지
-  try { fcFile.setAttribute("capture", "environment"); } catch {}
-  fcFile.setAttribute("accept", "image/*");
-  fcFile.onchange = (e)=>{
-    const f = e.target.files?.[0]; if(!f) return;
-    const r = new FileReader();
-    r.onload = ()=> { loadIntoSlot(idx, r.result, true); updateSaveEnabled(); };
-    r.readAsDataURL(f);
-    fcFile.value="";
-  };
-  fcFile.click();
-});
-
-function loadIntoSlot(idx, dataURL){
-  const slotEl = fcSlots[idx]; const imgEl = slotEl.querySelector(".fc-img");
-  const img = new Image(); img.onload = ()=>{
-    const slotW = slotEl.clientWidth, slotH = slotEl.clientHeight;
-    const cover = Math.max(slotW / img.width, slotH / img.height); // 빈틈 없이 채우기
-    const drawW = img.width * cover, drawH = img.height * cover;
-    // 상태 저장(사용자 조절 비활성화이므로 초기값이 곧 최종값)
-    _fcStates[idx] = {
-      img, w: img.width, h: img.height,
-      sx: cover,
-      ox: (slotW - drawW)/2,
-      oy: (slotH - drawH)/2
-    };
-    // 미리보기 적용
-    imgEl.style.width  = img.width + "px";
-    imgEl.style.height = img.height + "px";
-    imgEl.style.transform = `translate(${_fcStates[idx].ox}px, ${_fcStates[idx].oy}px) scale(${cover})`;
-    imgEl.src = dataURL;
-  };
-  img.src = dataURL;
-}
-
-function applyTransform(idx){
-  // (조절 OFF 상태 — 외부에서 호출될 일 없지만 호환 유지)
-  const slotEl = fcSlots[idx]; const imgEl = slotEl.querySelector(".fc-img");
-  const st = _fcStates[idx]; if (!st.img) { imgEl.style.transform="none"; return; }
-  imgEl.style.width = st.w + "px"; imgEl.style.height = st.h + "px";
-  imgEl.style.transform = `translate(${st.ox}px, ${st.oy}px) scale(${st.sx})`;
-}
-
-// 제스처(드래그/핀치) — 완전 비활성화
-if (ALLOW_ADJUST) {
-  fcSlots.forEach((slotEl)=>{
-    const idx = parseInt(slotEl.dataset.index,10);
-    let active=false, startX=0, startY=0, baseOX=0, baseOY=0, pinch=false, baseDist=0, baseS=1;
-
-    const getPts = (e)=>{
-      const pts=[]; if (e.touches) for(let i=0;i<e.touches.length;i++) pts.push({x:e.touches[i].clientX,y:e.touches[i].clientY});
-      else pts.push({x:e.clientX,y:e.clientY}); return pts;
-    };
-    const onDown = (e)=>{ if(!_fcStates[idx].img) return; active=true; pinch=false; baseS=_fcStates[idx].sx; baseOX=_fcStates[idx].ox; baseOY=_fcStates[idx].oy;
-      const pts=getPts(e); if(pts.length>=2){ pinch=true; baseDist=dist(pts[0],pts[1]); } else { startX=pts[0].x; startY=pts[0].y; } };
-    const onMove = (e)=>{ if(!active) return; e.preventDefault();
-      const pts=getPts(e);
-      if(pinch && pts.length>=2){ const d=dist(pts[0],pts[1]); _fcStates[idx].sx = clamp(baseS*(d/baseDist), 0.05, 8); }
-      else { const dx=pts[0].x-startX, dy=pts[0].y-startY; _fcStates[idx].ox = baseOX+dx; _fcStates[idx].oy = baseOY+dy; }
-      applyTransform(idx);
-    };
-    const onUp = ()=>{ active=false; pinch=false; };
-
-    slotEl.addEventListener("pointerdown", onDown, {passive:false});
-    window.addEventListener("pointermove", onMove, {passive:false});
-    window.addEventListener("pointerup", onUp, {passive:false});
-    slotEl.addEventListener("touchstart", onDown, {passive:false});
-    slotEl.addEventListener("touchmove", onMove, {passive:false});
-    slotEl.addEventListener("touchend", onUp, {passive:false});
-  });
-}
-function dist(a,b){ return Math.hypot(a.x-b.x, a.y-b.y); }
-function clamp(x,a,b){ return Math.max(a, Math.min(b,x)); }
-
-function updateSaveEnabled(){
-  const ok = !!(_fcStates[0].img && _fcStates[1].img && _fcStates[2].img && _fcStates[3].img);
-  fcSave.disabled = !ok;
-}
-
-// 고해상도 저장(템플릿 크기 우선, 없으면 DPR 기반)
-fcSave?.addEventListener("click", ()=>{
-  const stageW = fcStage.clientWidth, stageH = fcStage.clientHeight; // 미리보기 좌표계
-  let outW, outH;
-  if (_fcTemplateImg && _fcTemplateImg.complete && _fcTemplateImg.naturalWidth && _fcTemplateImg.naturalHeight) {
-    outW = _fcTemplateImg.naturalWidth;
-    outH = _fcTemplateImg.naturalHeight;
-  } else {
-    const dpr = Math.max(2, Math.round(window.devicePixelRatio || 2));
-    outW = Math.max(600, Math.round(stageW * dpr));
-    outH = Math.round(outW * 3); // 1:3 비율 유지
-  }
-
-  const c = document.createElement("canvas"); c.width = outW; c.height = outH;
-  const ctx = c.getContext("2d");
-
-  const sx = outW / stageW, sy = outH / stageH;
-  ctx.setTransform(sx, 0, 0, sy, 0, 0);
-
-  if (_fcTemplateImg && _fcTemplateImg.complete) {
-    ctx.drawImage(_fcTemplateImg, 0, 0, stageW, stageH);
-  } else {
-    ctx.fillStyle="#101010"; roundRect(ctx,0,0,stageW,stageH,20); ctx.fill();
-  }
-
-  fcSlots.forEach((slotEl, idx)=>{
-    const r = slotEl.getBoundingClientRect();
-    const sR = fcStage.getBoundingClientRect();
-    const x = r.left - sR.left, y = r.top - sR.top, w = r.width, h = r.height;
-
-    ctx.save(); roundRect(ctx,x,y,w,h,12); ctx.clip(); ctx.fillStyle="#0b0b0b"; ctx.fillRect(x,y,w,h);
-    const st = _fcStates[idx];
-    if (st.img){
-      const drawW = st.w * st.sx;
-      const drawH = st.h * st.sx;
-      ctx.drawImage(st.img, x + st.ox, y + st.oy, drawW, drawH);
-    }
-    ctx.restore();
-    ctx.strokeStyle="#282828"; ctx.lineWidth=1; roundRect(ctx,x,y,w,h,12); ctx.stroke();
-  });
-
-  const url = c.toDataURL("image/png");
-  const a = document.createElement("a"); a.href=url; a.download=`stamptour_4cut_${Date.now()}.png`; a.click();
-});
-
-function roundRect(ctx,x,y,w,h,r){
-  ctx.beginPath();
-  ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r);
-  ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
-  ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-r);
-  ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y); ctx.closePath();
-}
-
-async function renderStampBoardToDataURL(){
-  const board = document.getElementById("stampBoard");
-  const imgs = [...board.querySelectorAll("img")];
-  if (!imgs.length) return undefined;
-
-  const W = board.clientWidth || 600;
-  const H = board.clientHeight || Math.round(W * 2/3);
-  const c = document.createElement("canvas"); c.width=W; c.height=H;
-  const ctx = c.getContext("2d");
-
-  await Promise.all(imgs.map(im=> im.complete ? Promise.resolve() : new Promise(res=> { im.onload=res; im.onerror=res; })));
-  imgs.forEach(im=> ctx.drawImage(im, 0, 0, W, H));
-  try { return c.toDataURL("image/png"); } catch { return undefined; }
-}
