@@ -1,4 +1,3 @@
-// ======================= app.js =======================
 // v=2025-11-09-1 (four-cut removed + theme toggle) 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
 import {
@@ -159,6 +158,12 @@ if (suNicknameInput) {
     if (e.target.value.length > 8) e.target.value = e.target.value.slice(0, 8);
   });
 }
+const suPhoneInput = document.getElementById("su-phone");
+if (suPhoneInput) {
+  suPhoneInput.addEventListener("input", (e) => {
+    e.target.value = e.target.value.replace(/\D/g, "");
+  });
+}
 const addHourInput = document.getElementById("add-hour");
 if (addHourInput) {
   addHourInput.addEventListener("input", (e) => {
@@ -193,10 +198,11 @@ signupBtn.onclick = async () => {
   const nickname = (document.getElementById("su-nickname").value || "").trim();
   const email    = (document.getElementById("su-email").value || "").trim();
   const password = (document.getElementById("su-password").value || "");
+  const phone    = ((document.getElementById("su-phone").value || "")).replace(/\D/g, "");
 
-  // 닉네임 / 이메일 / 비밀번호만 필수
-  if (!nickname || !email || !password) {
-    return alert("닉네임, 이메일, 비밀번호는 필수입니다.");
+  // 닉네임 / 이메일 / 비밀번호 / 전화번호 필수
+  if (!nickname || !email || !password || !phone) {
+    return alert("닉네임, 이메일, 비밀번호, 전화번호는 필수입니다.");
   }
   if (nickname.length > 8) return alert("닉네임은 최대 8글자까지 가능합니다.");
 
@@ -209,11 +215,12 @@ signupBtn.onclick = async () => {
     // Firebase Auth 계정 생성
     const cred = await createUserWithEmailAndPassword(auth, email, password);
 
-    // 프로필에는 email / nickname 정도만 저장
+    // 프로필 저장 (gender/birth 없이)
     await set(ref(db, `users/${cred.user.uid}`), {
       profile: {
         email,
         nickname,
+        phone,
         createdAt: Date.now(),
         theme: (localStorage.getItem(THEME_KEY) || "dark")
       },
