@@ -129,43 +129,18 @@
 <body>
   <h1>DSHS Stamp Tour</h1>
 
-  <!-- 로그인 -->
+  <!-- 로그인 (닉네임만) -->
   <div id="login-section" class="card">
     <h2>로그인</h2>
     <div class="row" style="margin-bottom:8px;">
-      <input type="text" id="login-nickname" placeholder="닉네임 또는 이메일">
-      <input type="password" id="login-password" placeholder="비밀번호">
+      <input type="text" id="login-nickname" placeholder="닉네임 (최대 8자)">
     </div>
     <div class="row">
-      <button id="login" class="primary">로그인</button>
+      <button id="login" class="primary">입장</button>
     </div>
-    <p id="go-signup" class="muted-link">회원가입</p>
-  </div>
-
-  <!-- 회원가입 -->
-  <div id="signup-section" class="card" style="display:none;">
-    <button class="back-btn" onclick="closeSignup()">«</button>
-    <h2>회원가입</h2>
-    <div class="row" style="margin-bottom:8px;">
-      <input type="text" id="su-nickname" placeholder="닉네임 (최대 8자)" maxlength="8">
-      <input type="email" id="su-email" placeholder="이메일">
-      <input type="password" id="su-password" placeholder="비밀번호">
-      <input type="tel" id="su-phone" placeholder="전화번호(숫자만)">
-      <select id="su-gender">
-        <option value="">성별(선택)</option>
-        <option value="남">남</option>
-        <option value="여">여</option>
-        <option value="기타">기타/응답안함</option>
-      </select>
-      <label class="field">
-        <span class="label">생년월일 (선택)</span>
-        <input type="date" id="su-birth">
-      </label>
-    </div>
-    <div class="row">
-      <button id="signup" class="primary">회원가입 완료</button>
-      <button id="cancel-signup" class="ghost" onclick="closeSignup()">취소</button>
-    </div>
+    <p class="muted-link" style="text-decoration:none; cursor:default;">
+      닉네임만 입력하면 자동으로 계정이 생성됩니다.
+    </p>
   </div>
 
   <!-- 메인 -->
@@ -279,8 +254,8 @@
     <h2>설정</h2>
     <div class="row" style="gap:8px; margin-bottom:8px;">
       <label class="field">
-        <span class="label">닉네임 (최대 8자)</span>
-        <input type="text" id="settings-nickname" maxlength="8" placeholder="닉네임">
+        <span class="label">닉네임 (변경 불가)</span>
+        <input type="text" id="settings-nickname" maxlength="8" placeholder="닉네임" readonly>
       </label>
       <label class="field">
         <span class="label">전화번호</span>
@@ -317,12 +292,11 @@
   <button id="settings-btn" class="settings-btn" title="설정" aria-label="설정">⚙️</button>
 
   <!-- 스크립트 -->
-  <script type="module" src="app.js?v=2025-11-09-1"></script>
+  <script type="module" src="app.js?v=2025-11-09-nickname-only"></script>
   <script>
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("./service-worker.js?v=2025-11-09-1").catch(console.error);
     }
-    function closeSignup(){ document.getElementById('signup-section').style.display='none'; document.getElementById('login-section').style.display='block'; }
   </script>
 </body>
 </html>
