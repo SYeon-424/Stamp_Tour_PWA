@@ -1,4 +1,4 @@
-// v=2025-11-09-1 (four-cut removed + theme toggle)
+// v=2025-11-09-1 (four-cut removed + theme toggle) 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
 import {
   getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
@@ -58,6 +58,12 @@ const BOOTH_INFO = {
   "오토메틱": { img: "./booths/automatic.png", desc: "오토메틱 부스 소개글입니다." },
   "플럭스": { img: "./booths/flux.png", desc: "플럭스 부스 소개글입니다." }
 };
+
+// 🔗 부스별 외부 예약 링크 (Static은 외부 페이지로 이동)
+const EXTERNAL_RESERVE_LINKS = {
+  "Static": "https://dshs-robomaster.web.app/reservation.html"
+};
+
 const STAFF_PASSWORDS = {
   "pw1": "Static","pw2": "인포메티카","pw3": "배째미","pw4": "생동감","pw5": "마스터",
   "pw6": "Z-one","pw7": "셈터","pw8": "시그너스","pw9": "케미어스","pw10": "넛츠",
@@ -297,28 +303,47 @@ window.showBooth = function(name) {
 };
 window.closeBooth = function() { boothSection.style.display = "none"; appSection.style.display = "block"; };
 
+// 🔧 부스 목록 + 예약 버튼 (Static은 외부 링크로)
 async function renderBoothList() {
   const box = document.getElementById("booth-list");
   box.innerHTML = "";
+
   for (const name of Object.keys(BOOTH_INFO)) {
     let enabled = false;
     try {
       const s = await get(ref(db, `settings/booths/${name}/reservationEnabled`));
       enabled = !!(s.exists() && s.val());
     } catch {}
+
     const row = document.createElement("div");
     row.className = "booth-row";
+
     const introBtn = document.createElement("button");
-    introBtn.className = "booth-btn"; introBtn.textContent = name;
+    introBtn.className = "booth-btn";
+    introBtn.textContent = name;
     introBtn.onclick = () => showBooth(name);
     row.appendChild(introBtn);
 
     if (enabled) {
       const rBtn = document.createElement("button");
-      rBtn.className = "booth-btn reserve-btn"; rBtn.textContent = "예약";
-      rBtn.onclick = () => openReserve(name);
+      rBtn.className = "booth-btn reserve-btn";
+      rBtn.textContent = "예약";
+
+      const externalLink = EXTERNAL_RESERVE_LINKS[name];
+
+      if (externalLink) {
+        // Static 등 외부 예약 링크가 지정된 부스는 해당 링크로 이동
+        rBtn.onclick = () => {
+          window.open(externalLink, "_blank"); // 같은 탭이면 "_self"
+        };
+      } else {
+        // 기본: 내부 예약 시스템 사용
+        rBtn.onclick = () => openReserve(name);
+      }
+
       row.appendChild(rBtn);
     }
+
     box.appendChild(row);
   }
 }
