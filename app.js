@@ -1,4 +1,4 @@
-// v=2025-11-09-1 (four-cut removed + theme toggle) 
+// v=2025-11-09-닉네임전용
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
 import {
   getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
@@ -72,7 +72,6 @@ const STAFF_PASSWORDS = {
 
 // ===== DOM =====
 const loginSection  = document.getElementById("login-section");
-const signupSection = document.getElementById("signup-section");
 const appSection    = document.getElementById("app-section");
 const boothSection  = document.getElementById("booth-section");
 const reserveSection= document.getElementById("reserve-section");
@@ -81,8 +80,6 @@ const staffSection  = document.getElementById("staff-section");
 const settingsSection = document.getElementById("settings-section");
 
 const loginBtn      = document.getElementById("login");
-const goSignupBtn   = document.getElementById("go-signup");
-const signupBtn     = document.getElementById("signup");
 const logoutBtn     = document.getElementById("logout");
 const userDisplay   = document.getElementById("user-display");
 
@@ -112,27 +109,25 @@ function applyTheme(theme) {
 
 // ===== 화면 전환 =====
 function showLoginOnly() {
-  loginSection.style.display  = "block";
-  signupSection.style.display = "none";
-  appSection.style.display    = "none";
-  boothSection.style.display  = "none";
-  reserveSection.style.display= "none";
-  staffLoginSection.style.display = "none";
-  staffSection.style.display  = "none";
-  settingsSection.style.display = "none";
-  settingsBtn.style.display   = "none";
+  if (loginSection)  loginSection.style.display  = "block";
+  if (appSection)    appSection.style.display    = "none";
+  if (boothSection)  boothSection.style.display  = "none";
+  if (reserveSection)reserveSection.style.display= "none";
+  if (staffLoginSection) staffLoginSection.style.display = "none";
+  if (staffSection)  staffSection.style.display  = "none";
+  if (settingsSection) settingsSection.style.display = "none";
+  if (settingsBtn)   settingsBtn.style.display   = "none";
 }
 
 async function renderLoggedInUI(user) {
-  loginSection.style.display  = "none";
-  signupSection.style.display = "none";
-  appSection.style.display    = "block";
-  boothSection.style.display  = "none";
-  reserveSection.style.display= "none";
-  staffLoginSection.style.display = "none";
-  staffSection.style.display  = "none";
-  settingsSection.style.display = "none";
-  settingsBtn.style.display   = "flex";
+  if (loginSection)  loginSection.style.display  = "none";
+  if (appSection)    appSection.style.display    = "block";
+  if (boothSection)  boothSection.style.display  = "none";
+  if (reserveSection)reserveSection.style.display= "none";
+  if (staffLoginSection) staffLoginSection.style.display = "none";
+  if (staffSection)  staffSection.style.display  = "none";
+  if (settingsSection) settingsSection.style.display = "none";
+  if (settingsBtn)   settingsBtn.style.display   = "flex";
 
   // 닉네임 표시
   try {
@@ -152,12 +147,6 @@ async function renderLoggedInUI(user) {
 }
 
 // ===== 입력 보조 =====
-const suNicknameInput = document.getElementById("su-nickname");
-if (suNicknameInput) {
-  suNicknameInput.addEventListener("input", (e) => {
-    if (e.target.value.length > 8) e.target.value = e.target.value.slice(0, 8);
-  });
-}
 const addHourInput = document.getElementById("add-hour");
 if (addHourInput) {
   addHourInput.addEventListener("input", (e) => {
@@ -175,79 +164,58 @@ if (settingsNick) {
   });
 }
 
-// ===== 화면 전환 버튼 =====
-goSignupBtn.onclick = (e) => {
-  e.preventDefault();
-  loginSection.style.display = "none";
-  signupSection.style.display = "block";
-  appSection.style.display = "none";
-};
-window.closeSignup = function() {
-  signupSection.style.display = "none";
-  loginSection.style.display = "block";
-};
+// ===== 로그인 (닉네임만) =====
+const INTERNAL_PASSWORD = "STAMP_TOUR_INTERNAL_PASSWORD";
+function nicknameToEmail(nick) {
+  // 닉네임을 가짜 이메일로 변환 (닉네임 하나당 계정 하나)
+  const local = encodeURIComponent(nick);
+  return `${local}@stamptour.local`;
+}
 
-// ===== 회원가입 =====
-signupBtn.onclick = async () => {
-  const nickname = (document.getElementById("su-nickname").value || "").trim();
-  const email    = (document.getElementById("su-email").value || "").trim();
-  const password = (document.getElementById("su-password").value || "");
-  const phone    = ((document.getElementById("su-phone").value || "")).replace(/\D/g, "");
-  const gender   = (document.getElementById("su-gender").value || "").trim();
-  const birth    = (document.getElementById("su-birth").value || "").trim();
-
-  if (!nickname || !email || !password || !phone) return alert("닉네임, 이메일, 비밀번호, 전화번호는 필수입니다.");
-  if (nickname.length > 8) return alert("닉네임은 최대 8글자까지 가능합니다.");
-
-  try {
-    const qDup = query(ref(db, "users"), orderByChild("profile/nickname"), equalTo(nickname));
-    const dup = await get(qDup);
-    if (dup.exists()) return alert("이미 존재하는 닉네임입니다. 다른 닉네임을 사용해주세요.");
-
-    const cred = await createUserWithEmailAndPassword(auth, email, password);
-    await set(ref(db, `users/${cred.user.uid}`), {
-      profile: { email, nickname, phone, gender, birth, createdAt: Date.now(), theme: (localStorage.getItem(THEME_KEY) || "dark") },
-      stamps: {}
-    });
-
-    alert("회원가입 완료! 로그인 해주세요.");
-    showLoginOnly();
-  } catch (e) {
-    alert(e.message);
-  }
-};
-
-// ===== 로그인 =====
 loginBtn.onclick = async () => {
-  const id       = (document.getElementById("login-nickname").value || "").trim();
-  const password = (document.getElementById("login-password").value || "");
-  if (!id || !password) return alert("닉네임(또는 이메일)과 비밀번호를 입력하세요.");
+  const nickname = (document.getElementById("login-nickname").value || "").trim();
+  if (!nickname) return alert("닉네임을 입력하세요.");
+  if (nickname.length > 8) return alert("닉네임은 최대 8글자까지 가능합니다.");
 
   loginBtn.disabled = true;
   try {
-    let email = id;
-
-    if (!id.includes("@")) {
-      const qRef = query(ref(db, "users"), orderByChild("profile/nickname"), equalTo(id));
-      const snap = await get(qRef);
-      if (!snap.exists()) { alert("해당 닉네임을 찾을 수 없습니다."); return; }
-      const usersObj = snap.val();
-      const firstUid = Object.keys(usersObj)[0];
-      email = usersObj[firstUid]?.profile?.email;
-      if (!email) { alert("이 계정에 이메일 정보가 없어 로그인할 수 없습니다."); return; }
-    }
+    const email = nicknameToEmail(nickname);
 
     try { await setPersistence(auth, browserLocalPersistence); } catch {}
 
-    await signInWithEmailAndPassword(auth, email, password);
+    let cred;
+    try {
+      // 이미 존재하는 닉네임(계정)이면 로그인
+      cred = await signInWithEmailAndPassword(auth, email, INTERNAL_PASSWORD);
+    } catch (e) {
+      if (e.code === "auth/user-not-found") {
+        // 처음 들어온 닉네임이면 계정 자동 생성
+        cred = await createUserWithEmailAndPassword(auth, email, INTERNAL_PASSWORD);
+        await set(ref(db, `users/${cred.user.uid}`), {
+          profile: {
+            email,
+            nickname,
+            phone: "",
+            gender: "",
+            birth: "",
+            createdAt: Date.now(),
+            theme: (localStorage.getItem(THEME_KEY) || "dark")
+          },
+          stamps: {}
+        });
+      } else {
+        throw e;
+      }
+    }
 
     if (auth.currentUser) {
       await renderLoggedInUI(auth.currentUser);
-    } else {
-      setTimeout(() => auth.currentUser && renderLoggedInUI(auth.currentUser), 0);
+    } else if (cred?.user) {
+      await renderLoggedInUI(cred.user);
     }
   } catch (e) {
-    alert(e.message);
+    console.error(e);
+    alert("로그인 실패: " + (e.message || e.code || e));
   } finally {
     loginBtn.disabled = false;
   }
@@ -721,7 +689,6 @@ settingsBtn.onclick = () => openSettings();
 
 window.openSettings = async function() {
   loginSection.style.display  = "none";
-  signupSection.style.display = "none";
   appSection.style.display    = "none";
   boothSection.style.display  = "none";
   reserveSection.style.display= "none";
@@ -795,34 +762,21 @@ window.saveSettings = async function() {
   const user = auth.currentUser;
   if (!user) return alert("로그인이 필요합니다.");
 
-  const newNick = (settingsNick.value || "").trim();
+  // 닉네임은 계정 키라서 변경 불가 (읽기전용)
+  const profSnap = await get(ref(db, `users/${user.uid}/profile`));
+  const curNick = profSnap.exists() ? (profSnap.val().nickname || "") : "";
+
   const newPhone = (settingsPhone.value || "").replace(/\D/g, "");
 
-  if (!newNick) return alert("닉네임을 입력하세요.");
-  if (newNick.length > 8) return alert("닉네임은 최대 8글자입니다.");
-
   try {
-    const curNickSnap = await get(ref(db, `users/${user.uid}/profile/nickname`));
-    const curNick = curNickSnap.exists() ? curNickSnap.val() : null;
-
-    if (newNick !== curNick) {
-      const qDup = query(ref(db, "users"), orderByChild("profile/nickname"), equalTo(newNick));
-      const dup = await get(qDup);
-      if (dup.exists()) {
-        const keys = Object.keys(dup.val());
-        const someoneElse = keys.some(k => k !== user.uid);
-        if (someoneElse) return alert("이미 존재하는 닉네임입니다. 다른 닉네임을 사용해주세요.");
-      }
-    }
-
     await update(ref(db, `users/${user.uid}/profile`), {
-      nickname: newNick,
+      nickname: curNick,   // 그대로 유지
       phone: newPhone
     });
 
-    await updateReservationsForUser(user.uid, { nickname: newNick, phone: newPhone });
+    await updateReservationsForUser(user.uid, { nickname: curNick, phone: newPhone });
 
-    userDisplay.textContent = newNick || (user.email || "");
+    userDisplay.textContent = curNick || (user.email || "");
     settingsMsg.textContent = "✅ 저장되었습니다.";
     setTimeout(() => { settingsMsg.textContent = ""; }, 1500);
 
