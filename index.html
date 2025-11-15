@@ -2,301 +2,210 @@
 <html lang="ko">
 <head>
   <meta charset="utf-8">
-  <title>STAMP TOUR</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-  <meta http-equiv="Pragma" content="no-cache" />
-  <meta http-equiv="Expires" content="0" />
-  <link rel="manifest" href="manifest.json?v=2025-11-09-1">
-  <meta name="theme-color" content="#317EFB"/>
-  <style>
-    :root { color-scheme: dark; --stageW: 300px; }
-    @media (max-width: 720px) { :root { --stageW: 86vw; } }
+  <title>DSHS Stamp Tour</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <meta name="theme-color" content="#317EFB">
 
+  <link rel="manifest" href="manifest.json?v=2025-11-11">
+
+  <style>
+    :root { color-scheme: dark; }
     body {
       font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-      margin: 0; padding: 20px; text-align: center;
-      background: #121212; color: #eee;
+      margin:0; padding:20px; text-align:center;
+      background:#121212; color:#eee;
     }
-    h1, h2 { margin: 8px 0 16px; color: #fff; }
+    h1,h2 { margin:6px 0 12px; }
 
     .card {
-      max-width: 480px; margin: 12px auto; padding: 16px;
-      border-radius: 12px; background: #1e1e1e;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+      max-width:480px; margin:12px auto; padding:16px;
+      background:#1e1e1e; border-radius:12px;
+      box-shadow:0 4px 12px rgba(0,0,0,0.4);
     }
-    .row { display: flex; gap: 8px; justify-content: center; align-items: center; flex-wrap: wrap; }
 
-    input[type="text"], input[type="email"], input[type="password"], input[type="tel"], input[type="date"], select {
-      padding: 10px 12px; font-size: 16px; border: 1px solid #333; border-radius: 8px; min-width: 220px;
-      background: #2a2a2a; color: #fff;
+    input, select {
+      padding:10px; background:#2a2a2a; color:#fff;
+      border:1px solid #333; border-radius:8px; min-width:200px;
     }
-    input[type="checkbox"] { min-width: 0; width: auto; height: 18px; margin: 0; accent-color: #317EFB; }
-
-    button { padding: 10px 14px; font-size: 15px; border: none; border-radius: 10px; cursor: pointer; }
-    .primary { background: #317EFB; color: #fff; }
-    .ghost   { background: transparent; border: 1px solid #317EFB; color: #317EFB; }
-    .danger  { background: #b00020; color: #fff; }
-
-    .stampboard {
-      position: relative; width: 100%; max-width: 600px; aspect-ratio: 3/2; margin: 12px auto;
-      border: 2px solid #444; border-radius: 12px; overflow: hidden; background: #000;
+    button {
+      padding:10px 14px; font-size:15px; border:none; border-radius:10px;
+      cursor:pointer;
     }
-    .stampboard img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
 
-    .booth-grid { display: flex; flex-direction: column; gap: 0; max-width: 420px; margin: 14px auto; }
-    .booth-row { display: flex; align-items: center; padding: 8px 0; border-bottom: 1px solid #444; }
-    .booth-row:last-child { border-bottom: none; }
-    .reserve-btn { margin-left: auto; }
+    .primary { background:#317EFB; color:#fff; }
+    .ghost { background:transparent; border:1px solid #317EFB; color:#317EFB; }
+    .danger { background:#b00020; color:#fff; }
 
-    .booth-btn { background: #2a2a2a; color: #fff; border: 1px solid #444; padding: 12px; border-radius: 10px; transition: background 0.2s; }
-    .booth-btn:hover { background: #317EFB; color: #fff; }
+    #stampBoard {
+      position:relative; width:100%; max-width:600px;
+      aspect-ratio:3/2; margin:12px auto;
+      overflow:hidden; border-radius:12px;
+      border:1px solid #444;
+    }
+    #stampBoard img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
 
-    .topbar { display: flex; justify-content: space-between; align-items: center;
-      margin: 0 auto 8px; padding: 6px 12px; background: #2a2a2a; border-radius: 8px; }
-    .topbar .info { font-size: 14px; opacity: .8; color: #ccc; }
+    .booth-grid {
+      display:flex; flex-direction:column; max-width:420px;
+      margin:14px auto; gap:0;
+    }
+    .booth-row {
+      display:flex; align-items:center;
+      padding:8px 0; border-bottom:1px solid #444;
+    }
+    .booth-row:last-child { border-bottom:none; }
+    .booth-btn {
+      background:#2a2a2a; border:1px solid #444; color:#fff;
+      padding:12px; border-radius:10px;
+      margin-right:12px;
+    }
+    .booth-btn:hover { background:#317EFB; }
+
+    .reserve-btn { margin-left:auto; }
 
     .back-btn {
-      position: fixed; top: 10px; left: 10px; z-index: 1000; background: #317EFB; color: #fff;
-      border: none; padding: 6px 12px; border-radius: 6px; font-size: 18px; font-weight: bold;
+      position:fixed; left:10px; top:10px;
+      background:#317EFB; color:#fff;
+      border:none; padding:6px 12px; border-radius:6px;
+      font-size:18px; z-index:999;
     }
 
-    .tab-divider { border: none; border-top: 2px solid #444; margin: 8px 0; }
-    .tab-bar { display: flex; justify-content: flex-start; gap: 6px; margin-bottom: 16px; }
-    .tab-btn { background: #2a2a2a; border: none; color: #fff; padding: 8px 14px; border-radius: 8px; cursor: pointer; transition: all 0.2s; font-weight: 500; }
-    .tab-btn.active { background: #317EFB; color: #fff; }
-
-    .toggle-row { display: inline-flex; align-items: center; gap: 8px; justify-content: center; }
-    .toggle-row label { cursor: pointer; }
-
-    table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 14px; }
-    th, td { border: 1px solid #444; padding: 6px; }
-    th { background: #2a2a2a; }
-    td { background: #1e1e1e; }
-
-    .field { display: flex; flex-direction: column; align-items: flex-start; }
-    .field .label { font-size: 12px; color: #bbb; margin: 0 0 4px 4px; }
+    table { width:100%; border-collapse:collapse; margin-top:10px; }
+    th,td { padding:6px; border:1px solid #444; font-size:14px; }
+    th { background:#2a2a2a; }
 
     .settings-btn {
-      position: fixed; top: 14px; right: 14px; z-index: 1200; width: 44px; height: 44px; border-radius: 50%;
-      background: #2a2a2a; border: 1px solid #444; color: #fff; font-size: 22px; display: none; align-items: center; justify-content: center;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+      position:fixed; right:14px; top:14px; width:44px; height:44px;
+      background:#2a2a2a; border:1px solid #444; border-radius:50%;
+      font-size:22px; color:#fff; cursor:pointer;
+      display:none; align-items:center; justify-content:center;
     }
-    .settings-btn:hover { background: #317EFB; }
-
-    .muted-link { color: #9aa0a6; font-size: 13px; margin-top: 6px; cursor: pointer; text-decoration: underline; display: inline-block; }
-    .muted-link:hover { color: #cfd8dc; }
-
-    .danger-text { color: #ff8a80; font-size: 13px; }
+    .settings-btn:hover { background:#317EFB; }
 
     #booth-img {
-      width: 100%;
-      max-width: 360px;  /* 원하는 최대 크기 */
-      height: auto;
-      border-radius: 12px;
-      margin: 10px auto;
-      display: block;
+      width:100%; max-width:360px;
+      border-radius:12px;
+      margin:10px auto;
+      display:block;
     }
-
-    /* === Light theme overrides === */
-    :root[data-theme="light"] body { background:#fafafa; color:#111; }
-    :root[data-theme="light"] h1, :root[data-theme="light"] h2 { color:#111; }
-    :root[data-theme="light"] .card { background:#ffffff; box-shadow:0 4px 12px rgba(0,0,0,.08); }
-    :root[data-theme="light"] .topbar { background:#f2f4f7; }
-    :root[data-theme="light"] .topbar .info { color:#444; opacity:.9; }
-    :root[data-theme="light"] .stampboard { border-color:#d0d7de; background:#fff; }
-    :root[data-theme="light"] .booth-btn { background:#fff; color:#111; border-color:#d0d7de; }
-    :root[data-theme="light"] .booth-btn:hover { background:#317EFB; color:#fff; }
-    :root[data-theme="light"] .settings-btn { background:#fff; color:#111; border-color:#d0d7de; }
-    :root[data-theme="light"] input[type="text"],
-    :root[data-theme="light"] input[type="email"],
-    :root[data-theme="light"] input[type="password"],
-    :root[data-theme="light"] input[type="tel"],
-    :root[data-theme="light"] input[type="date"],
-    :root[data-theme="light"] select {
-      background:#fff; color:#111; border:1px solid #c9d1d9;
-    }
-    :root[data-theme="light"] .ghost { border-color:#317EFB; color:#317EFB; background:transparent; }
-    :root[data-theme="light"] .danger  { background:#d32f2f; }
-    :root[data-theme="light"] th { background:#f2f4f7; color:#111; }
-    :root[data-theme="light"] td { background:#ffffff; color:#111; }
-    :root[data-theme="light"] .tab-btn { background:#fff; color:#111; border:1px solid #e6e8eb; }
-    :root[data-theme="light"] .tab-btn.active { background:#317EFB; color:#fff; border-color:#317EFB; }
-    :root[data-theme="light"] .muted-link { color:#5f6c7b; }
-    :root[data-theme="light"] .danger-text { color:#b00020; }
   </style>
 </head>
+
 <body>
-  <h1>DSHS Stamp Tour</h1>
+<h1>DSHS Stamp Tour</h1>
 
-  <!-- 로그인 (닉네임만) -->
-  <div id="login-section" class="card">
-    <h2>로그인</h2>
-    <div class="row" style="margin-bottom:8px;">
-      <input type="text" id="login-nickname" placeholder="닉네임 (최대 8자)">
-    </div>
-    <div class="row">
-      <button id="login" class="primary">입장</button>
-    </div>
-    <p class="muted-link" style="text-decoration:none; cursor:default;">
-      닉네임만 입력하면 자동으로 계정이 생성됩니다.
-    </p>
+<!-- 로그인 -->
+<div id="login-section" class="card">
+  <h2>로그인</h2>
+  <input id="login-nickname" type="text" placeholder="닉네임 (최대 8자)">
+  <br><br>
+  <button id="login" class="primary">입장</button>
+  <p style="font-size:13px; color:#aaa; margin-top:6px;">
+    닉네임만 입력하면 자동으로 계정이 생성됩니다.
+  </p>
+</div>
+
+<!-- 메인 -->
+<div id="app-section" class="card" style="display:none;">
+  <div style="display:flex; justify-content:space-between;">
+    <div id="user-display" style="opacity:.8;"></div>
+    <button id="logout" class="ghost">로그아웃</button>
   </div>
 
-  <!-- 메인 -->
-  <div id="app-section" class="card" style="display:none;">
-    <div class="topbar">
-      <div class="info" id="user-display"></div>
-      <button id="logout" class="ghost">로그아웃</button>
-    </div>
+  <h2>내 도장판</h2>
+  <div id="stampBoard"></div>
 
-    <h2>내 도장판</h2>
-    <div class="stampboard" id="stampBoard"></div>
+  <h2>부스 소개</h2>
+  <div id="booth-list" class="booth-grid"></div>
+  <hr>
+  <button class="booth-btn" onclick="openStaffLogin()">Staff Only</button>
+</div>
 
-    <h2>부스 소개</h2>
-    <hr style="margin:10px 0; border:1px solid #444;">
-    <div class="booth-grid" id="booth-list"></div>
-    <hr style="margin:10px 0; border:1px solid #444;">
-    <button class="booth-btn" onclick="openStaffLogin()">Staff Only</button>
+<!-- 부스 상세 -->
+<div id="booth-section" class="card" style="display:none; position:relative;">
+  <button class="back-btn" onclick="closeBooth()">«</button>
+  <h2 id="booth-name"></h2>
+  <img id="booth-img">
+  <p id="booth-desc"></p>
+</div>
+
+<!-- 예약 -->
+<div id="reserve-section" class="card" style="display:none;">
+  <button class="back-btn" onclick="closeReserve()">«</button>
+  <h2 id="reserve-title"></h2>
+
+  <table>
+    <thead><tr><th style="width:100px;">시간</th><th>닉네임</th></tr></thead>
+    <tbody id="reserve-tbody"><tr><td colspan="2">불러오는 중…</td></tr></tbody>
+  </table>
+
+  <p>※ 동시간대 최대 <b id="reserve-capacity">2</b>명 예약 가능</p>
+
+  <div style="display:flex; gap:8px; justify-content:center;">
+    <select id="reserve-slot"></select>
+    <button id="reserve-action" class="primary">예약</button>
+  </div>
+</div>
+
+<!-- 스태프 로그인 -->
+<div id="staff-login-section" class="card" style="display:none;">
+  <button class="back-btn" onclick="closeStaffLogin()">«</button>
+  <h2>관리자 로그인</h2>
+  <input id="staff-password" type="password" placeholder="비밀번호">
+  <br><br>
+  <button class="primary" onclick="checkStaffPassword()">확인</button>
+</div>
+
+<!-- 스태프 -->
+<div id="staff-section" class="card" style="display:none;">
+  <button class="back-btn" onclick="closeStaff()">«</button>
+  <h2 id="staff-booth-name"></h2>
+
+  <div style="display:flex; gap:6px; margin-bottom:8px;">
+    <button class="tab-btn active" onclick="openStaffTab('stamp')">도장</button>
+    <button class="tab-btn" onclick="openStaffTab('reserve')">예약</button>
   </div>
 
-  <!-- 부스 상세 -->
-  <div id="booth-section" class="card" style="display:none; position:relative;">
-    <button class="back-btn" onclick="closeBooth()">«</button>
-    <h2 id="booth-name"></h2>
-    <img id="booth-img" alt="부스 배너">
-    <p id="booth-desc"></p>
+  <!-- 도장 -->
+  <div id="staff-tab-stamp" style="display:block;">
+    <input id="target-nickname" type="text" placeholder="닉네임 입력">
+    <button class="primary" onclick="giveStamp()">도장 찍기</button>
+    <p id="stamp-result" style="margin-top:10px; font-size:14px;"></p>
   </div>
 
-  <!-- 예약 -->
-  <div id="reserve-section" class="card" style="display:none; position:relative;">
-    <button class="back-btn" onclick="closeReserve()">«</button>
-    <h2 id="reserve-title">예약</h2>
-    <table>
-      <thead><tr><th style="width:120px;">시간</th><th>닉네임</th></tr></thead>
-      <tbody id="reserve-tbody"><tr><td colspan="2">불러오는 중…</td></tr></tbody>
-    </table>
-    <p class="hint">※ 동시간대 최대 <b id="reserve-capacity">2</b>명 예약 가능</p>
-    <div class="row" style="gap:8px;">
-      <select id="reserve-slot"></select>
-      <button id="reserve-action" class="primary">예약</button>
+  <!-- 예약관리 -->
+  <div id="staff-tab-reserve" style="display:none; text-align:left;">
+    <label><input type="checkbox" id="reserve-toggle"> 예약 기능 사용</label>
+
+    <div id="staff-reserve-admin" style="display:none; margin-top:10px;">
+      <h3>시간당 최대 예약 인원</h3>
+      <input id="capacity-input" type="number" min="1" style="width:80px;">
+      <button class="primary" onclick="saveCapacity()">저장</button>
+
+      <h3>예약 목록</h3>
+      <table>
+        <thead><tr><th>시간</th><th>닉네임</th><th>전화</th></tr></thead>
+        <tbody id="staff-reserve-tbody"></tbody>
+      </table>
+
+      <h3>시간 추가</h3>
+      <input id="add-hour" type="text" placeholder="예: 13:30" style="width:100px;">
+      <button class="primary" onclick="addReserveTime()">추가</button>
+
+      <h3>시간 삭제</h3>
+      <select id="delete-time"></select>
+      <button class="ghost" onclick="deleteReserveTime()">삭제</button>
     </div>
   </div>
+</div>
 
-  <!-- 스태프 로그인 -->
-  <div id="staff-login-section" class="card" style="display:none;">
-    <button class="back-btn" onclick="closeStaffLogin()">«</button>
-    <h2>관리자 로그인</h2>
-    <input type="password" id="staff-password" placeholder="비밀번호 입력">
-    <div style="margin-top:10px;">
-      <button class="primary" onclick="checkStaffPassword()">확인</button>
-    </div>
-  </div>
+<!-- 설정 버튼 -->
+<button id="settings-btn" class="settings-btn">⚙️</button>
 
-  <!-- 스태프 -->
-  <div id="staff-section" class="card" style="display:none;">
-    <button class="back-btn" onclick="closeStaff()">«</button>
-    <h2 id="staff-booth-name"> 관리</h2>
-    <hr class="tab-divider">
-    <div class="tab-bar">
-      <button class="tab-btn active" onclick="openStaffTab('stamp')">도장</button>
-      <button class="tab-btn" onclick="openStaffTab('reserve')">예약</button>
-    </div>
-    <hr class="tab-divider">
+<!-- JS -->
+<script type="module" src="app.js?v=2025-11-11-full"></script>
 
-    <div id="staff-tab-stamp" style="display:block;">
-      <input type="text" id="target-nickname" placeholder="닉네임 입력">
-      <button class="primary" onclick="giveStamp()">도장 찍기</button>
-      <p id="stamp-result" style="margin-top:10px; font-size:14px; color:#ccc;"></p>
-    </div>
-
-    <div id="staff-tab-reserve" style="display:none;">
-      <div class="toggle-row" style="margin-bottom:6px;">
-        <label for="reserve-toggle">예약 기능 사용</label>
-        <input type="checkbox" id="reserve-toggle" />
-      </div>
-
-      <div id="staff-reserve-admin" style="display:none; text-align:left; margin-top:8px;">
-        <hr class="tab-divider">
-
-        <h3 style="margin:6px 0;">시간당 최대 예약인원 수 설정</h3>
-        <div class="row" style="gap:8px; margin-bottom:8px;">
-          <input type="number" id="capacity-input" min="1" step="1" style="min-width:120px;" placeholder="ex) 2">
-          <button class="primary" onclick="saveCapacity()">저장</button>
-        </div>
-
-        <hr class="tab-divider">
-
-        <h3 style="margin:6px 0;">예약목록</h3>
-        <table>
-          <thead><tr><th style="width:100px;">시간</th><th>닉네임</th><th>전화번호</th></tr></thead>
-          <tbody id="staff-reserve-tbody"><tr><td colspan="3">불러오는 중…</td></tr></tbody>
-        </table>
-
-        <hr class="tab-divider">
-
-        <h3 style="margin:6px 0;">예약 시간 관리</h3>
-        <div class="row" style="gap:8px; margin-bottom:8px;">
-          <input id="add-hour" type="text" inputmode="numeric" placeholder="ex) 13 또는 13:30" pattern="\d{1,2}(:\d{2})?">
-          <button class="primary" onclick="addReserveTime()">시간 추가</button>
-        </div>
-        <div class="row" style="gap:8px;">
-          <select id="delete-time" style="min-width:160px;"></select>
-          <button class="ghost" onclick="deleteReserveTime()">시간 삭제</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- 설정 -->
-  <div id="settings-section" class="card" style="display:none; position:relative;">
-    <button class="back-btn" onclick="closeSettings()">«</button>
-    <h2>설정</h2>
-    <div class="row" style="gap:8px; margin-bottom:8px;">
-      <label class="field">
-        <span class="label">닉네임 (변경 불가)</span>
-        <input type="text" id="settings-nickname" maxlength="8" placeholder="닉네임" readonly>
-      </label>
-      <label class="field">
-        <span class="label">전화번호</span>
-        <input type="tel" id="settings-phone" placeholder="숫자만">
-      </label>
-    </div>
-
-    <!-- 다크모드 스위치 -->
-    <div class="row" style="gap:8px; margin-bottom:8px;">
-      <label class="field" style="flex-direction:row; align-items:center; gap:8px;">
-        <input type="checkbox" id="settings-theme">
-        <span>다크 모드 사용</span>
-      </label>
-    </div>
-
-    <div class="row">
-      <button class="primary" onclick="saveSettings()">변경 저장</button>
-    </div>
-
-    <hr class="tab-divider">
-
-    <div style="text-align:left;">
-      <h3 style="margin:6px 0;">계정</h3>
-      <p class="danger-text">회원탈퇴 시 모든 데이터가 삭제되며 되돌릴 수 없습니다.</p>
-      <div class="row">
-        <button class="danger" onclick="deleteAccount()">회원탈퇴</button>
-      </div>
-    </div>
-
-    <p id="settings-msg" style="margin-top:10px; font-size:14px; color:#ccc;"></p>
-  </div>
-
-  <!-- 고정 ⚙️ 버튼 -->
-  <button id="settings-btn" class="settings-btn" title="설정" aria-label="설정">⚙️</button>
-
-  <!-- 스크립트 -->
-  <script type="module" src="app.js?v=2025-11-11-1"></script>
-  <script>
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("./service-worker.js?v=2025-11-09-1").catch(console.error);
-    }
-  </script>
 </body>
 </html>
